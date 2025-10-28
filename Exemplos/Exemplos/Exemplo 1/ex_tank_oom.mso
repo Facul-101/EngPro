@@ -1,0 +1,69 @@
+using "tank_oom";
+
+#example of inheritance
+FlowSheet Tanks
+
+DEVICES
+	source as Feed;
+	T_c as Tank_Circular; 
+	T_sq as Tank_Square;
+	sink as Sink;
+	
+CONNECTIONS
+	source.F to T_c.Fin;
+	T_c.Fout to T_sq.Fin;
+	T_sq.Fout to sink.F;
+	
+SET
+	T_c.D = 3 * 'm';
+	T_sq.D = 3 * 'm';
+
+SPECIFY
+	source.F = 20 * 'm^3/h';
+	
+INITIAL
+	T_c.h = 1 * 'm';
+	T_sq.h = 2 * 'm';
+
+OPTIONS
+	TimeStart = 0;
+	TimeEnd = 20;
+	TimeStep = 0.5;
+	TimeUnit = 'h';
+
+end
+
+#Same example using model switching
+FlowSheet Tanks2
+
+DEVICES
+	source as Feed;
+	T_c as Tank_Section; 
+	T_sq as Tank_Section;
+	sink as Sink;
+	
+CONNECTIONS
+	source.F to T_c.Fin;
+	T_c.Fout to T_sq.Fin;
+	T_sq.Fout to sink.F;
+	
+SET
+	T_c.D = 3 * 'm';
+	T_c.Section = "Circular";
+	T_sq.D = 3 * 'm';
+	T_sq.Section = "Square";
+
+SPECIFY
+	source.F = 20 * 'm^3/h';
+	
+INITIAL
+	T_c.h = 1 * 'm';
+	T_sq.h = 2 * 'm';
+
+OPTIONS
+	TimeStart = 0;
+	TimeEnd = 20;
+	TimeStep = 0.5;
+	TimeUnit = 'h';
+
+end

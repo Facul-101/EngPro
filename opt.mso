@@ -1,0 +1,46 @@
+using "dimens";
+
+CaseStudy CS as Dimensionamento
+
+	VARY
+	_evaporador.r_vap = [0.75:0.005:0.99];
+	
+	RESPONSE
+	Cmp;
+	Cutil;
+	ISBL;
+	LE;
+	
+end
+
+Optimization APT as Dimensionamento
+	
+	MAXIMIZE
+	LE;
+	
+	FREE
+	_evaporador.r_vap;
+	
+	EQUATIONS
+	_evaporador.r_vap <= 0.75;
+	_evaporador.r_vap >= 0.99;
+	
+	OPTIONS
+	Dynamic = false;
+	NLPSolveNLA = true;
+	NLPSolver(File = "minlp_emso", derivative_test = "second-order", bonmin_algorithm = "B-BB");
+	
+end
+
+CaseStudy CS_completo as Dimensionamento
+
+	VARY
+	_evaporador.r_vap = [0.01:0.005:0.99];
+	
+	RESPONSE
+	Cmp;
+	Cutil;
+	ISBL;
+	LE;
+	
+end

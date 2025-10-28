@@ -1,0 +1,45 @@
+using "types";
+
+Model Custom_Corrente
+
+	PARAMETERS
+	A as Integer;
+	B as Integer;
+	C as Integer;
+	D as Integer;
+	
+	Cp(4)	as positive (Unit='kcal/(kg*K)');	# Capacidades calorificas
+	lat(4)	as positive (Unit='kcal/kg');		# Calores latentes
+	rho(4)	as positive (Unit='kg/l');			# Densidades
+	
+	SET
+	A = 1;
+	B = 2;
+	C = 3;
+	D = 4;
+	
+	Cp = [0.5, 0.6, 0.7, 1.0]*'kcal/(kg*K)';
+	lat = [0, 0, 150, 450]*'kcal/kg';
+	rho = [0.6, 0.7, 0.8, 1]*'kg/l';
+	
+	VARIABLES
+	W 		as positive (Unit='kg/h');	# Vazao massica total
+	T 		as positive (Unit='K');		# Temperatura
+	x(4)	as fraction;				# Fracao massica por componente
+	f(4)	as positive (Unit='kg/h');	# Vazao massica por componente
+	sum_cop	as positive;				# Soma das comp
+	
+	
+	EQUATIONS
+	f = x*W;
+	sum_cop = sum(x);
+
+end
+
+
+Model Custom_Fonte
+
+	VARIABLES
+	out	outlet as Custom_Corrente; # Saida da fonte
+
+end

@@ -1,0 +1,65 @@
+FlowSheet OCM_din
+		
+	PARAMETERS
+	MCO as Plugin(Type="OCFEM",Boundary="BOTH", 
+					InternalPoints=5, 
+					alfa=1, beta=1);
+
+	np as Integer;
+	nd as Integer;
+	N as Integer;
+	A(N) as Real(Brief="recebe valores de do vetor A");
+	B(N) as Real(Brief="recebe valores de do vetor B");
+	r(np) as Real(Brief="raizes de jacob");
+	
+	Da as Real;
+	Pe as Real;
+	m as Real;
+	
+	SET
+	np= MCO.NodalPoints;
+	N= MCO.NodalPoints * MCO.NodalPoints;
+	A = MCO.matrixA;	
+	B = MCO.matrixB;
+	r = MCO.roots;
+	
+	Da = 5;
+	m = 1;
+	Pe = 2;
+	
+	VARIABLES
+	y(np) as Real(Brief="variavel dependente");
+	
+	mA(np,np) as Real(Brief="cria matriz A");
+	mB(np,np) as Real(Brief="cria matriz B");
+	
+	dif1x(np) as Real(Brief="calcula 1derivada");
+	dif2x(np) as Real(Brief="calcula 2derivada");
+	
+	EQUATIONS
+	#comando para criar as matrizes
+	for j in [1:np] do
+		mA(:,j) = A((j-1)*np+[1:np]);
+		mB(:,j) = B((j-1)*np+[1:np]);
+	end
+	
+	#calculando as derivadas
+	dif1x = sumt(mA*y); 
+	dif2x = sumt(mB*y);	
+
+	#Equacao principal
+	diff(y(2:np-1))*'s' + dif1x(2:np-1) = 1/Pe * dif2x(2:np-1) - Da*y(2:np-1)^m;
+	
+	#Equacoes de contorno
+	y(1) = 1;
+	dif1x(np) = 0;
+
+	INITIAL
+	y(2:np-1) = 0;
+
+	OPTIONS
+	TimeStep = 0.01;
+	TimeEnd = 0.2;
+	TimeUnit = 's';
+	Dynamic = true;
+end

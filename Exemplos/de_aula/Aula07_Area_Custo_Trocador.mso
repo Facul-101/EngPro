@@ -1,0 +1,181 @@
+using "types";
+
+
+FlowSheet Area_Custo_Trocador
+	
+	PARAMETERS
+	U as positive (Unit='kW/(m^2*C)');
+	WCpQ as positive (Unit='kW/C');
+	WCpF as positive (Unit='kW/C');
+	
+	
+	SET
+	U = 0.75*'kW/(m^2*C)';
+	WCpQ = 2*'kW/C';
+	WCpF = 7*'kW/C';
+	
+	VARIABLES
+	TEQ as positive (Unit='C');
+	TSF as positive (Unit='C');
+	DT1 as positive (Unit='C');
+	TEF as positive (Unit='C');
+	TSQ as positive (Unit='C');
+	DT2 as positive (Unit='C');
+	DTML as positive(Unit='C');
+	Q as positive (Unit='kW');
+	A as positive (Unit='m^2');
+	Ccap as positive (Unit='US$');
+	
+	EQUATIONS
+	
+	"Aproach 1"
+	DT1 = TEQ - TSF;
+	
+	"Aproach 2"
+	DT2 = TSQ - TEF;
+	
+	"DT medio logaritmico"
+	DTML = 	(DT1-DT2)/ln(DT1/DT2);
+	
+	"Oferta"
+	Q = WCpQ*(TEQ-TSQ);
+	
+	"Demanda"
+	Q = WCpF*(TSF-TEF);
+	
+	"Area"
+	A = Q/(U*DTML);
+	
+	"Custo de capital"
+	Ccap = 165*'US$'*(A*'1/m^2')^0.5;
+	
+	SPECIFY
+	TEQ = 100*'C';
+	TEF = 50*'C';
+	TSF = 60*'C';
+	
+	OPTIONS
+	Dynamic = false;
+	
+end
+
+FlowSheet Area_Custo_Aquecedor
+	
+	PARAMETERS
+	U as positive (Unit='kW/(m^2*C)');
+	WCpF as positive (Unit='kW/C');
+	lambda as positive (Unit='kW*h/(kg*C)');
+	
+	SET
+	U = 0.75*'kW/(m^2*C)';
+	WCpF = 7*'kW/C';
+	lambda = 0.48*'kW*h/(kg*C)';
+	
+	VARIABLES
+	TEQ as positive (Unit='C');
+	TSF as positive (Unit='C');
+	DT1 as positive (Unit='C');
+	TEF as positive (Unit='C');
+	TSQ as positive (Unit='C');
+	DT2 as positive (Unit='C');
+	DTML as positive(Unit='C');
+	Q as positive (Unit='kW');
+	A as positive (Unit='m^2');
+	Ccap as positive (Unit='US$');
+	mVapor as positive (Unit='kg/h');
+	
+	EQUATIONS
+	
+	"Aproach 1"
+	DT1 = TEQ - TSF;
+	
+	"Aproach 2"
+	DT2 = TSQ - TEF;
+	
+	"DT medio logaritmico"
+	DTML = 	(DT1-DT2)/ln(DT1/DT2);
+	
+	"Oferta"
+	Q = lambda*mVapor*TEQ;
+	
+	"Demanda"
+	Q = WCpF*(TSF-TEF);
+	
+	"Area"
+	A = Q/(U*DTML);
+	
+	"Custo de capital"
+	Ccap = 165*'US$'*(A*'1/m^2')^0.5;
+	
+	"Calor latente"
+	TSQ = TEQ;
+	
+	SPECIFY
+	TEQ = 100*'C';
+	TEF = 50*'C';
+	TSF = 60*'C';
+	
+	OPTIONS
+	Dynamic = false;
+	
+end
+
+FlowSheet Area_Custo_Esfriador
+	
+	PARAMETERS
+	U as positive (Unit='kW/(m^2*C)');
+	WCpQ as positive (Unit='kW/C');
+	CpAgua as positive (Unit='kW*h/(kg*C)');
+	
+	
+	SET
+	U = 0.75*'kW/(m^2*C)';
+	WCpQ = 2*'kW/C';
+	CpAgua = 0.00116*'kW*h/(kg*C)';
+	
+	VARIABLES
+	TEQ as positive (Unit='C');
+	TSF as positive (Unit='C');
+	DT1 as positive (Unit='C');
+	TEF as positive (Unit='C');
+	TSQ as positive (Unit='C');
+	DT2 as positive (Unit='C');
+	DTML as positive(Unit='C');
+	Q as positive (Unit='kW');
+	A as positive (Unit='m^2');
+	Ccap as positive (Unit='US$');
+	mAgua as positive (Unit='kg/h');
+	
+	EQUATIONS
+	
+	"Aproach 1"
+	DT1 = TEQ - TSF;
+	
+	"Aproach 2"
+	DT2 = TSQ - TEF;
+	
+	"DT medio logaritmico"
+	DTML = 	(DT1-DT2)/ln(DT1/DT2);
+	
+	"Oferta"
+	Q = WCpQ*(TEQ-TSQ);
+	
+	"Demanda"
+	Q = mAgua*CpAgua*(TSF-TEF);
+	
+	"Area"
+	A = Q/(U*DTML);
+	
+	"Custo de capital"
+	Ccap = 165*'US$'*(A*'1/m^2')^0.5;
+	
+	SPECIFY
+	TEQ = 100*'C';
+	TSQ = 80*'C';
+	TEF = 50*'C';
+	TSF = 60*'C';
+	
+	OPTIONS
+	Dynamic = false;
+	
+end

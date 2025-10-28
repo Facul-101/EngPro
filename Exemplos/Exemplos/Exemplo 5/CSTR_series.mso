@@ -1,0 +1,95 @@
+#* 
+ Series of CSTRs with PI Controller
+*#
+
+using "Types";
+
+ConcInt as Real(Unit='kmol/m^3*h',
+                Default=0,Lower=-20,Upper=20);
+
+Model CSTR
+
+PARAMETERS
+  tau as time_h;
+  k   as frequency;
+
+VARIABLES
+  Ca     as conc_mol;
+  Ca_in  as conc_mol;
+  Ca_out as conc_mol;
+
+EQUATIONS
+
+  "Mass Balance"
+  diff(Ca) = (Ca_in - Ca) / tau - k * Ca;
+  Ca_out = Ca;
+
+end # CSTR
+
+
+Model PI
+
+PARAMETERS
+  Kc as positive;
+  Ti as time_h;
+
+VARIABLES
+  Cm        as conc_mol;
+  Cmss      as conc_mol;
+  Set_point as conc_mol;
+  e			as conc_mol(Lower=-20);
+  w			as ConcInt;
+
+EQUATIONS
+
+  Cm = Cmss + Kc * (e + w / Ti);
+  diff(w) = e;
+
+end # PI
+
+
+FlowSheet SERIES
+ DEVICES
+  CSTR1 as CSTR;
+  CSTR2 as CSTR;
+  CSTR3 as CSTR;
+  CONTROLLER as PI;
+ VARIABLES
+  Ca_d as conc_mol;
+ SET
+  CSTR1.tau = 2 * 'h';
+  CSTR2.tau = 2 * 'h';
+  CSTR3.tau = 2 * 'h';
+  CSTR1.k = 0.5 * '1/h';
+  CSTR2.k = 0.5 * '1/h';
+  CSTR3.k = 0.5 * '1/h';
+  CONTROLLER.Kc = 10;
+  CONTROLLER.Ti = 4 * 'h';
+ EQUATIONS
+  CONTROLLER.Cm + Ca_d = CSTR1.Ca_in;
+  CSTR1.Ca_out = CSTR2.Ca_in;
+  CSTR2.Ca_out = CSTR3.Ca_in;
+  CONTROLLER.e = CONTROLLER.Set_point - CSTR3.Ca_out;
+  if time < 15 * 'h' then 
+	Ca_d = 0.4 * 'kmol/m^3';
+  else
+	Ca_d = 0.5 * 'kmol/m^3';
+  end
+  if time < 30 * 'h' then
+    CONTROLLER.Set_point = 0.1 * 'kmol/m^3';
+  else
+    CONTROLLER.Set_point = 0.15 * 'kmol/m^3';
+  end
+ SPECIFY
+  CONTROLLER.Cmss = 0.4 * 'kmol/m^3';
+ INITIAL
+  CSTR1.Ca = 0.3 * 'kmol/m^3';
+  CSTR2.Ca = 0.2 * 'kmol/m^3';
+  CSTR3.Ca = 0.1 * 'kmol/m^3';
+  CONTROLLER.w = 0 * 'h*kmol/m^3';
+ OPTIONS
+	TimeStart = 0;
+	TimeStep = 0.5;
+	TimeEnd = 60;
+	TimeUnit = 'h';
+end

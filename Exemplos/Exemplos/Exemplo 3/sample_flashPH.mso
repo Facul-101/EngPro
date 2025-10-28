@@ -1,0 +1,38 @@
+
+using "flash";
+
+FlowSheet FlashPHTest
+	
+PARAMETERS
+	PP	as Plugin(Brief="Physical Properties",Type="PP",
+		Components = ["methane", "isobutene", "benzene"],
+		LiquidModel = "PR",
+		VapourModel = "PR"
+	);
+	NComp	as Integer;
+
+SET
+	NComp = PP.NumberOfComponents;
+	
+DEVICES
+	fl as FlashPHSteady;
+	s1 as source;
+	Q  as energy_source (Brief="Heat supplied");
+	
+CONNECTIONS
+	s1.Outlet to fl.Inlet;
+	Q.OutletQ to fl.InletQ;
+	
+SPECIFY
+	s1.F = 496.3 * 'kmol/h';
+	s1.T = 338 * 'K';
+	s1.P = 5 * 'atm';
+	s1.Composition = [0.1, 0.7,0.2];
+	
+	fl.OutletL.P = 2.5 * 'atm';
+	Q.OutletQ = 0 * 'kJ/h';
+	#fl.OutletL.T = 315.06 * 'K';
+	
+	OPTIONS
+	Dynamic = false;
+end

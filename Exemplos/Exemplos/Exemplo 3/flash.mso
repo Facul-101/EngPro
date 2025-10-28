@@ -1,0 +1,59 @@
+
+using "streams";
+
+Model FlashPHSteady
+
+ATTRIBUTES
+	Pallete 	= true;
+	Icon 		= "icon/Flash"; 
+	Brief 		= "Model of a static PH flash.";
+	Info 		=
+"This model is for using the flashPH routine available on VRTherm.
+
+==Assumptions==
+*perfect mixing of both phases;
+
+==Specify==
+*the feed stream;
+*the heat duty;
+*the outlet pressure.
+";
+
+PARAMETERS
+
+outer PP 		as Plugin (Brief = "External Physical Properties", Type="PP");
+outer NComp 	as Integer;
+
+VARIABLES
+
+	vfrac 		as fraction			(Brief="Real vaporization fraction");
+	h 			as enth_mol			(Brief="Mixture enthalpy");
+in	Inlet 		as stream			(Brief="Feed Stream", PosX=0, PosY=0.5421, Symbol = "^{in}");
+out	OutletL 	as liquid_stream	(Brief="Liquid outlet stream", PosX=0.4790, PosY=1, Symbol = "^{outL}");
+out	OutletV 	as vapour_stream	(Brief="Vapour outlet stream", PosX=0.4877, PosY=0, Symbol = "^{outV}");
+in	InletQ 		as power		 	(Brief="Rate of heat supply", PosX=1, PosY=0.7559, Symbol = "^{inQ}");
+
+	EQUATIONS
+
+"Chemical equilibrium"
+	[vfrac,OutletL.z,OutletV.z]=PP.FlashPH(OutletL.P,h,Inlet.z);
+
+"Overall Molar Balance"
+	Inlet.F = OutletV.F + OutletL.F;
+	
+"Vapour Fraction"
+	OutletV.F = Inlet.F * vfrac;
+
+"Heat rate"
+	Inlet.F*(h - Inlet.h) = InletQ;
+
+"Energy Balance"
+	Inlet.F*h = Inlet.F*(1-vfrac)*OutletL.h + Inlet.F*vfrac*OutletV.h;
+
+"Thermal Equilibrium"
+	OutletV.T = OutletL.T;
+	
+"Mechanical Equilibrium"
+	OutletV.P = OutletL.P;
+
+end

@@ -1,0 +1,86 @@
+using "types";
+
+
+FlowSheet Dois_extratores
+	
+	PARAMETERS
+	
+	Q as positive (Unit = 'kg/h');
+	x0 as fraction;
+	k as positive;
+	
+	pAB as positive (Unit = 'US$/kg');
+	pB as positive (Unit = 'US$/kg');
+	
+	
+	SET
+	
+	Q = 10000*'kg/h';
+	x0 = 0.02;
+	k = 3;
+	
+	pAB = 0.4*'US$/kg';
+	pB = 0.01*'US$/kg';
+	
+	
+	VARIABLES
+	
+	x1 as fraction;
+	x2 as fraction;
+	y1 as fraction;
+	y2 as fraction;
+	W1 as positive (Unit = 'kg/h');
+	W2 as positive (Unit = 'kg/h');
+	
+	R as positive (Unit = 'US$/h');
+	C as positive (Unit = 'US$/h');
+	L as Real (Unit = 'US$/h');
+	
+	EQUATIONS
+	
+	Q*(x0-x1) = W1*y1;
+	y1 = k*x1;
+	Q*(x1-x2) = W2*y2;
+	y2 = k*x2;
+	
+	R = pAB*(W1*y1 + W2*y2);
+	C = pB*(W1 + W2);
+	L = R - C;
+	
+	SPECIFY
+	x1 = 0.012;
+	x2 = 0.006;
+	
+	OPTIONS
+	Dynamic = false;
+	
+end
+
+CaseStudy CS as Dois_extratores
+	
+	VARY
+	x1 = [0.013:0.0005:0.018];
+	x2 = [0.008:0.0005:0.013];
+	
+	RESPONSE
+	L;
+
+end
+
+Optimization Opt as Dois_extratores 
+	
+	MAXIMIZE
+	L;
+	
+	FREE
+	x1;
+	x2;
+	
+	OPTIONS
+	Dynamic = false;
+	NLPSolveNLA = false;
+	NLPSolver(File = "ipopt_emso",
+			  MaxIterations = 1000,
+			  RelativeAccuracy = 1e-8);
+end
+

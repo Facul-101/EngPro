@@ -1,0 +1,185 @@
+#*-------------------------------------------------------------------
+* EMSO Model Library (EML) Copyright (C) 2004 - 2007 ALSOC.
+*
+* This LIBRARY is free software; you can distribute it and/or modify
+* it under the therms of the ALSOC FREE LICENSE as available at
+* http://www.enq.ufrgs.br/alsoc.
+*
+* EMSO Copyright (C) 2004 - 2007 ALSOC, original code
+* from http://www.rps.eng.br Copyright (C) 2002-2004.
+* All rights reserved.
+*
+* EMSO is distributed under the therms of the ALSOC LICENSE as
+* available at http://www.enq.ufrgs.br/alsoc.
+*
+*--------------------------------------------------------------------
+* Sample file showing how to model a ammonia process
+*--------------------------------------------------------------------
+* 
+* This sample file needs VRTherm (www.vrtech.com.br) to run.
+*
+*----------------------------------------------------------------------
+* Author: Rafael P. Soares
+*		based on code from VRThech Tecnologias Industriais Ltda.
+* $Id: ammonia.mso 916 2010-02-24 23:15:15Z rafael $
+*--------------------------------------------------------------------*#
+
+using "stage_separators/flash";
+using "mixers_splitters/splitter";
+
+# A simple ideal compressor
+Model Compressor
+	PARAMETERS
+outer PP as Plugin(Brief = "External Physical Properties", Type="PP");
+outer NComp as Integer;
+	
+	VARIABLES
+in	Inlet as stream;
+out	Outlet as streamPH;
+
+	EQUATIONS
+	"Isentropic expansion"
+	PP.VapourEntropy(Outlet.T, Outlet.P, Outlet.z) = 
+		PP.VapourEntropy(Inlet.T, Inlet.P, Inlet.z);
+	
+	"Global Molar Balance"
+	Inlet.F = Outlet.F;
+	"Component Molar Balance"
+	Inlet.z = Outlet.z;
+end
+
+# A simple 2 Inlet mixer.
+Model Mixer
+	PARAMETERS
+outer PP as Plugin(Brief = "External Physical Properties", Type="PP");
+outer NComp as Integer;
+	
+	VARIABLES
+in	Inlet1 as stream;
+in	Inlet2 as stream;
+out	Outlet as streamPH;
+
+	EQUATIONS
+	"Energy Balance"
+	Outlet.F * Outlet.h = Inlet1.F * Inlet1.h + Inlet2.F * Inlet2.h;
+	
+	Inlet1.P = Outlet.P;
+	
+	"Global Molar Balance"
+	Inlet1.F + Inlet2.F = Outlet.F;
+	"Component Molar Balance"
+	Inlet1.z*Inlet1.F + Inlet2.z*Inlet2.F = Outlet.F * Outlet.z;
+end
+
+# A simple 'conversion' based reactor.
+Model Reactor
+	PARAMETERS
+outer PP as Plugin(Brief = "External Physical Properties", Type="PP");
+outer NComp as Integer;
+	NReac as Integer(Default=1);
+	stoic(NComp, NReac) as Real (Brief = "Stoichiometric Matrix");
+	comp(NReac) as Integer(Default=1, Brief = "Key Component of the reaction");
+	
+	VARIABLES
+in	Inlet as stream;
+out	Outlet as streamPH;
+	Outletz(NComp) as fraction;
+	X(NReac) as fraction(Brief="Convertion of the key component");
+	
+	EQUATIONS
+	"Energy Balance"
+	Outlet.F * Outlet.h = Inlet.F * Inlet.h;
+	
+	"Global Molar Balance"
+	Outlet.F = Inlet.F * (1 - sum(Outletz));
+	
+	for i in [1:NComp] do
+		"Component Molar Balance"
+		Outletz(i) = Inlet.z(i) + sum(stoic(i,:)*X*Inlet.z(comp));
+	end
+	
+	"Normalize the outlet composition"
+	Outlet.z * sum(Outletz) = Outletz;
+
+	Outlet.P = Inlet.P;
+end
+
+# Ammonia Process
+FlowSheet Ammonia
+	PARAMETERS
+	PP	as Plugin(Brief="Physical Properties", Type="PP",
+		Components = ["hydrogen", "nitrogen", "argon", "methane", "ammonia"],
+		LiquidModel = "ASRK",
+		VapourModel = "ASRK");
+	NComp	as Integer;
+	SET
+	
+	NComp = PP.NumberOfComponents;
+	
+	DEVICES
+	FEED   as source;
+	C101   as Compressor;
+	R101   as Reactor;
+	F101   as flash_steady;
+	F102   as flash_steady;
+	S101   as splitter2;
+	M101   as Mixer;
+	M102   as Mixer;
+	C102   as Compressor;
+
+	VARIABLES
+	purity as fraction(Brief="Purity of the product");
+	production as flow_mol(DisplayUnit = 'lbmol/h', Brief="Ammonia in the product");
+	loose as flow_mol(DisplayUnit = 'lbmol/h', Brief="Ammonia in the purge");
+	Q1 as energy_source;
+	Q2 as energy_source;
+
+	CONNECTIONS
+	FEED.Outlet    to   M101.Inlet1;
+	M101.Outlet    to   C101.Inlet;
+	C101.Outlet    to   M102.Inlet1;
+	M102.Outlet    to   R101.Inlet;
+	R101.Outlet    to   F101.Inlet;
+	F101.OutletLiquid   to   F102.Inlet;
+	F102.OutletVapour   to   M101.Inlet2;
+	F101.OutletVapour   to   S101.Inlet;
+	S101.Outlet1   to   C102.Inlet;
+	C102.Outlet    to   M102.Inlet2;
+	
+	Q1.OutletQ      to   F101.InletQ;
+	Q2.OutletQ      to   F102.InletQ;	
+	
+	SET
+	R101.comp = 2; # Key component of the reaction
+	R101.stoic = [-3, -1, 0, 0, 2]; # Stoichiometry of the reaction
+
+	SPECIFY
+	FEED.F = 2000 * 'lbmol/h';
+	FEED.T = (27 + 273.15) * 'K';
+	FEED.P = 10 * 'atm';
+	FEED.Composition = [0.74, 0.24, 0.01, 0.01, 0.0];
+	
+	C101.Outlet.P = 200 * 'atm';
+	C102.Outlet.P = 200 * 'atm';
+	
+	R101.X = 0.4; # Convertion of the reactor
+	
+	F101.OutletVapour.P = 199 * 'atm';
+	F101.OutletVapour.T = (-34 + 273.15) * 'K';
+	
+	F102.OutletVapour.P = 10 * 'atm';
+	F102.InletQ = 0 * 'kJ/h';
+	
+	S101.FlowRatios(1) = 0.75; #78 Recycle fraction
+		
+	EQUATIONS
+	production = purity * F102.OutletLiquid.F;
+	purity = F102.OutletLiquid.z(5);
+	loose  = S101.Outlet2.F * S101.Outlet2.z(5);
+	
+	OPTIONS
+	Dynamic = false;
+	NLASolver(
+		RelativeAccuracy = 1e-5
+	);
+end

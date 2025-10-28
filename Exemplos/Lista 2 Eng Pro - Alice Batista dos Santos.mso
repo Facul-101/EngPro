@@ -1,0 +1,536 @@
+using "types";
+
+Model corrente
+
+	PARAMETERS
+	componente_A as Integer;
+	componente_B as Integer;
+	componente_C as Integer;
+	componente_D as Integer;
+	Cp(4) as positive (Brief="Capacidade calorifica componente", Unit='kcal/(kg*K)');
+	lambda_C as positive (Brief="Calor latente C", Unit='kcal/kg');
+	lambda_D as positive (Brief="Calor latente D", Unit='kcal/kg');
+	ro(4) as positive (Brief="Densidade componente A", Unit='kg/l');
+
+	SET
+	componente_A = 1;
+	componente_B = 2;
+	componente_C = 3;
+	componente_D = 4;
+	Cp = [0.4, 0.6, 0.8, 1.0]*'kcal/(kg*K)';
+	lambda_C = 120*'kcal/kg';
+	lambda_D = 500*'kcal/kg';
+	ro = [0.7, 0.8, 0.9, 1.0]*'kg/l';
+
+	VARIABLES
+	W as positive (Brief="Vazao massica total da corrente", Unit='kg/h');
+	x(4) as fraction (Brief="Vetor de fracao massica de cada componente");
+	T as positive (Brief="Temperatura da corrente", Unit='K');
+	f(4) as positive (Brief="Vetor de vazao massica de cada componente", Unit='kg/h');
+	som_comp as positive (Brief="Soma das composicoes");
+	
+	EQUATIONS
+	
+	"Vazao massica de cada componente"
+	f = x*W;
+
+	"Soma das composicoes"
+	som_comp = sum(x);
+	
+end
+
+Model fonte
+
+	VARIABLES
+	out saida as corrente;
+
+end
+
+FlowSheet teste_fonte
+	
+	DEVICES
+	Feed as fonte;
+	
+	SPECIFY
+	Feed.saida.W = 3484*'kg/h'; #DRE:3484
+	Feed.saida.T = 300*'K';
+	Feed.saida.x = [1, 0, 0, 0];
+
+	OPTIONS
+	Dynamic = false;
+
+end
+
+Model reator
+
+	VARIABLES
+	in corrente_1 as corrente (Brief="Corrente de entrada da alimentacao");
+	out corrente_2 as corrente (Brief="Corente de saida do reator");
+
+	C as fraction (Brief="conversao de A em B");
+	Tr as positive (Brief="Tempo reacao reator", Unit='h');
+	Vr as positive (Brief="Volume reator", Unit='m^3');
+	
+	EQUATIONS
+
+	"Conversao por tempo de reacao"
+	C=0.92*(1-exp(-20*Tr*'1/h'));
+
+	"Vazao componente A na corrente 2"
+	corrente_2.f(1) = corrente_1.f(1)*(1-C);
+	
+	"Vazao componente B na corrente 2"
+	corrente_2.f(2) = corrente_1.f(1)*C;
+
+	"Vazao componente C na corrente 2"
+	corrente_2.f(3) = corrente_1.f(3);
+	
+	"Vazao componente D na corrente 2"
+	corrente_2.f(4) = corrente_1.f(4);
+
+	"Volume do reator"
+	Vr = sum(corrente_1.f/corrente_1.ro)*Tr;
+
+	"Relacao temp 1 e temp 2"
+	corrente_1.T = corrente_2.T;
+	
+	"Somatorio da fracao massica"
+	sum(corrente_2.x)=1;
+
+end
+
+FlowSheet teste_reator
+	
+	DEVICES
+	Reator as reator;
+	Corrente_1 as fonte;
+	
+	CONNECTIONS
+	Corrente_1.saida to Reator.corrente_1;
+
+	SPECIFY
+	Corrente_1.saida.W = 3484*'kg/h'; #DRE:3484
+	Corrente_1.saida.T = 300*'K';
+	Corrente_1.saida.x = [1, 0, 0, 0];
+	
+	#Meta do projeto
+	Reator.C = 0.9;
+	
+	OPTIONS
+	Dynamic = false;
+	
+end
+
+Model extrator
+	
+	VARIABLES
+	in corrente_2 as corrente;
+	out corrente_3 as corrente (Brief="corrente de saida do extrator");
+	in corrente_8 as corrente (Brief="corrente de entrada no extrator pos misturador");
+	out corrente_9 as corrente (Brief="corrente de saida extrator majoritariamente B");
+	
+	kt as positive (Brief="k teorico");
+	kr as positive (Brief="k real");
+	text as positive (Brief="tempo no extrator", Unit='h');
+	Te as positive (Brief="Temperatura do extrator", Unit='K');
+	Rext as positive (Brief="fator de seperacao do componente A no extrator");
+	Ve as positive (Brief="Volume extrator", Unit='m^3');
+	
+	EQUATIONS
+	
+	"Relacoes de valores de vazao massica"
+	corrente_3.f(2) = 0*'kg/h';
+	corrente_9.f(3) = 0*'kg/h';
+	corrente_3.f(4) = 0*'kg/h';
+	corrente_9.f(4) = 0*'kg/h';
+	
+	"k teorico"
+	kt = (3 + 0.04*(corrente_9.T-273*'K')*'1/K');
+	
+	"k real"
+	kr = kt*(1-exp(-10*text*'1/h'));
+	
+	"k real em funcao de fracao massica"
+	kr = corrente_3.x(1)/corrente_9.x(1);
+	
+	"Balancos de massa"
+	sum(corrente_2.f*corrente_2.Cp)*corrente_2.T+sum(corrente_8.f*corrente_8.Cp)*corrente_8.T=sum(corrente_3.f*corrente_3.Cp)*corrente_3.T+sum(corrente_9.f*corrente_9.Cp)*corrente_9.T;
+	sum(corrente_3.x)=1;
+	sum(corrente_9.x)=1;
+	corrente_9.f(2)=corrente_2.f(2);
+	corrente_3.f(3)=corrente_8.f(3);
+	
+	"Relacoes de balanco de massa do componente A"
+	corrente_3.f(1) = corrente_2.f(1)*Rext;
+	corrente_9.f(1) = corrente_2.f(1)*(1-Rext);
+
+	"Relacoes de temperatura"
+	corrente_3.T = Te;
+	corrente_9.T = Te;
+
+	"Volume do extrator"
+	Ve = (sum(corrente_2.f/corrente_2.ro)+ sum(corrente_8.f/corrente_8.ro))*text;
+
+end
+
+FlowSheet teste_extrator
+		
+	DEVICES
+	Extrator as extrator;
+	Corrente_2 as fonte;
+	Corrente_8 as fonte;
+	
+	CONNECTIONS
+	Corrente_2.saida to Extrator.corrente_2;
+	Corrente_8.saida to Extrator.corrente_8;
+
+	SPECIFY
+	#Determinados pelo teste de reator
+	Corrente_2.saida.W = 500*'kg/h'; #vazao massica de entrada no reator = saida
+	Corrente_2.saida.T = 300*'K';
+	Corrente_2.saida.x = [0.1, 0.9, 0, 0]; #conversao 90% de A em B
+	
+	Corrente_8.saida.T = 400*'K'; # valor arbitrario escolhido para testar o extrator
+	Corrente_8.saida.x = [0, 0, 1, 0]; #corrente 8 componente 3 puro
+	
+	#Metas de projeto
+	Extrator.text = 0.5*'h';
+	Extrator.corrente_9.x(2)=0.95;
+	
+	OPTIONS
+	Dynamic = false;
+	
+end
+
+Model evaporador
+
+	PARAMETERS
+	Ue as positive (Brief="Coeficiente global de troca termica do evaporador", Unit='kcal/(h*m^2*K)');
+	
+	SET
+	Ue = 100*'kcal/(h*m^2*K)';
+
+	VARIABLES
+	in corrente_3 as corrente;
+	out corrente_4 as corrente (Brief="corrente de A e C para ser descartada");
+	out corrente_5 as corrente (Brief="corrente de saida do evaporador para o condensador");
+	in corrente_10 as corrente (Brief="corrente entrada trocador de calor");
+	out corrente_11 as corrente (Brief="corrente saida trocador de calor");
+
+	Q as positive (Brief="Calor fornecido ao evaporador", Unit='kcal/h');
+	Ae as positive (Brief="Area util de troca termica do evaporador", Unit='m^2');
+	Tevap as positive (Brief="Temperatura do evaporador", Unit='K');
+	Revap as positive;
+
+	EQUATIONS
+	
+	"Balanco de fracao massica"
+	#utilizando fracoes massicas ao inves de vazoes massicas pois estava dando erro na simulacao
+	corrente_5.x(4)=0;
+	corrente_4.x(4)=0;
+	corrente_5.x(2)=0;
+	corrente_4.x(2)=0;
+	corrente_5.x(1)=0;
+	
+	"Somatorios de fracoes massicas"
+	sum(corrente_4.x)=1;
+	sum(corrente_5.x)=1; 
+	sum(corrente_11.x)=1;
+
+	"Balancos de energia do evaporador"
+	Q = Ue * Ae * (corrente_10.T-Tevap);
+	Q = corrente_10.W * corrente_10.lambda_D;
+	Q = sum(corrente_3.f*corrente_3.Cp)*(Tevap-corrente_3.T)+(corrente_5.W*corrente_5.lambda_C);
+
+	"Balanco de temperatura evaporador"
+	corrente_10.T = corrente_11.T;
+	corrente_4.T = Tevap;
+	corrente_5.T = Tevap;
+
+	"Balanco de vazoes massicas"
+	corrente_4.f(3)=corrente_3.f(3)*(1-Revap);
+	corrente_5.f(3)=corrente_3.f(3)*Revap;
+	corrente_4.f(1)=corrente_3.f(1);
+	corrente_11.f = corrente_10.f;
+	
+end
+
+FlowSheet teste_evaporador
+	
+	DEVICES
+	Evaporador as evaporador;
+	Corrente_10 as fonte;
+	Corrente_3 as fonte;
+	
+	CONNECTIONS
+	Corrente_10.saida to Evaporador.corrente_10;
+	Corrente_3.saida to Evaporador.corrente_3;
+	
+	
+	SPECIFY
+	Corrente_10.saida.T = 420*'K';
+	Corrente_10.saida.x = [0,0,0,1];
+	
+	#Adotando alguns valores arbitrarios para o teste de evaporador
+	Corrente_3.saida.W = 500*'kg/h';
+	Corrente_3.saida.T = 320*'K';
+	Corrente_3.saida.x = [0.5, 0, 0.5, 0];
+	
+	Evaporador.Revap = 0.9;
+	Evaporador.Tevap = 350*'K';
+		
+	OPTIONS
+	Dynamic = false;
+	
+end
+
+Model condensador
+	
+	PARAMETERS
+	Uc as positive (Brief="Coeficiente global de troca termica do condesador", Unit='kcal/(h*m^2*K)');
+	
+	SET
+	Uc = 100*'kcal/(h*m^2*K)';
+
+	VARIABLES
+	in corrente_5 as corrente;
+	out corrente_6 as corrente (Brief="corrente de saida do condesador");
+	in corrente_12 as corrente (Brief="corrente entrada trocador de calor");
+	out corrente_13 as corrente (Brief="corrente saida trocador de calor");
+
+	Q as positive (Brief="Calor fornecido ao evaporador", Unit='kcal/h');
+	Ac as positive (Brief="Area util de troca termica do condesador", Unit='m^2');
+	DTML as positive (Brief="Variacao de temperatura geral", Unit='K');
+	DT1 as positive (Brief="Variacao de temperatura 1", Unit='K');
+	DT2 as positive (Brief="Variacao de temperatura 2", Unit='K');
+	
+	EQUATIONS
+	"Relacoes de vazao massica"
+	corrente_6.f=corrente_5.f;
+	corrente_13.f=corrente_12.f;
+	
+	"Relacoes de temperatura"
+	DT1=corrente_5.T-corrente_13.T;
+	DT2=corrente_6.T-corrente_12.T;
+	DTML=(DT1-DT2)/ln(DT1/DT2);
+	corrente_6.T=corrente_5.T;
+		
+	"Somatorios de vazoes massicas"
+	sum(corrente_6.x)=1;
+	sum(corrente_13.x)=1;
+
+	"Balancos de energia do evaporador"
+	Q = Uc*Ac*DTML;
+	Q = corrente_5.W * corrente_5.lambda_C;
+	Q = sum(corrente_12.f*corrente_12.Cp)*(corrente_13.T-corrente_12.T);
+
+end
+
+FlowSheet teste_condensador
+	
+	DEVICES
+	Corrente_12 as fonte;
+	Corrente_5 as fonte;
+	Condensador as condensador;
+	
+	CONNECTIONS
+	Corrente_5.saida to Condensador.corrente_5;
+	Corrente_12.saida to Condensador.corrente_12;
+	
+	SPECIFY
+	Corrente_5.saida.W = 300*'kg/h'; #supondo um valor de W5
+	Corrente_5.saida.T = 350*'K'; #T5 = Tevap = 350K
+	Corrente_5.saida.x = [0, 0, 1, 0]; 
+	
+	Corrente_12.saida.T = 285*'K';
+	Corrente_12.saida.x = [0, 0, 0, 1];
+	
+	Condensador.corrente_13.T = 300*'K';
+	
+	OPTIONS
+	Dynamic = false;
+	
+	
+end
+
+Model misturador
+
+	VARIABLES
+	in corrente_6 as corrente;
+	in corrente_7 as corrente;
+	out corrente_8 as corrente;
+
+	EQUATIONS
+	"soma das vazoes massicas"
+	corrente_6.f + corrente_7.f = corrente_8.f;
+	
+	"Somatorio de fracao massica"
+	sum(corrente_8.x)=1;
+
+	"Somatorios de relacoes"
+	sum(corrente_6.f*corrente_6.Cp)*corrente_6.T + sum(corrente_7.f*corrente_7.Cp)*corrente_7.T =sum(corrente_8.f*corrente_8.Cp)*corrente_8.T;
+
+end 
+
+FlowSheet teste_misturador
+	
+	DEVICES
+	Misturador as misturador;
+	Corrente_6 as fonte;
+	Corrente_7 as fonte;
+
+	CONNECTIONS
+	Corrente_6.saida to Misturador.corrente_6;
+	Corrente_7.saida to Misturador.corrente_7;
+
+	SPECIFY
+	Corrente_6.saida.W = 1000*'kg/h'; #supondo para o teste de misturador
+	Corrente_6.saida.T = 400*'K'; #supondo para o teste de misturador 
+	Corrente_6.saida.x = [0, 0, 1, 0]; #componente 3 puro
+	
+	Corrente_7.saida.x = [0, 0 , 1, 0]; #componente 3 puro
+	Corrente_7.saida.W = 1000*'kg/h'; #supondo para o tesde de misturador
+	Corrente_7.saida.T = 300*'K';
+
+	OPTIONS
+	Dynamic = false;
+	
+end
+
+FlowSheet Dimensionamento
+	
+	DEVICES
+	Corrente_1 as fonte;
+	Corrente_7 as fonte;
+	Corrente_10 as fonte;
+	Corrente_12 as fonte;
+	Reator as reator;
+	Extrator as extrator;
+	Evaporador as evaporador;
+	Condensador as condensador;
+	Misturador as misturador;
+	
+	CONNECTIONS
+	
+	Corrente_1.saida to Reator.corrente_1;
+	Reator.corrente_2 to Extrator.corrente_2;
+	Extrator.corrente_3 to Evaporador.corrente_3;
+	Evaporador.corrente_5 to Condensador.corrente_5;
+	Corrente_10.saida to Evaporador.corrente_10;
+	Condensador.corrente_6 to Misturador.corrente_6;
+	Corrente_12.saida to Condensador.corrente_12;
+	Misturador.corrente_8 to Extrator.corrente_8;
+	Corrente_7.saida to Misturador.corrente_7;
+	
+	SPECIFY
+	
+	Corrente_1.saida.W = 1539*'kg/h';
+	Corrente_1.saida.T = 300*'K';
+	Corrente_1.saida.x = [1, 0, 0, 0];
+	
+	Corrente_10.saida.T = (420)*'K';
+	Corrente_10.saida.x = [0, 0, 0, 1];
+	
+	Corrente_7.saida.T = (300)*'K';
+	Corrente_7.saida.x = [0, 0, 1, 0];
+	
+	Corrente_12.saida.T = (285)*'K';
+	Corrente_12.saida.x = [0, 0, 0, 1];
+	
+	Reator.C = 0.9;
+	
+	Extrator.corrente_9.x(2)=0.95;
+	Extrator.text = 0.75*'h';
+	
+	Evaporador.Tevap=350*'K';
+	Evaporador.Revap=0.9;
+	
+	#Evaporador.Revap = 0.99; #Calculado no Case Study
+	
+	Condensador.corrente_13.T=300*'K'; 
+	
+	VARIABLES
+	R as positive (Brief= "Receita", Unit='US$/h');
+	Cmp as positive (Brief= "Custo materia prima", Unit='US$/h');
+	Cutil as positive (Brief= "Custo util da planta", Unit='US$/h');
+	ISBL as positive (Unit='US$/h');
+	LE as Real (Brief= "Lucro estimado", Unit='US$/h');
+	
+	EQUATIONS
+	
+	R = (0.09*(Extrator.corrente_9.f(2)*'h/kg'))*'US$/h';
+	Cmp = ((0.03*Corrente_1.saida.W + 0.0115*Corrente_7.saida.W)*'h/kg')*'US$/h';
+	Cutil = ((0.0015*Corrente_10.saida.W + 0.00005*Corrente_12.saida.W)*'h/kg')*'US$/h';
+	ISBL = 0.0006*((272.51*(((Reator.Vr+Extrator.Ve)*'1/m^3')^0.6))+(8352.73*((Condensador.Ac+Evaporador.Ae)*'1/m^2')^0.5))*'US$/h';
+	LE = (0.48*(R*'h/US$')-0.68*((Cmp+Cutil)*'h/US$')-0.54*(ISBL*'h/US$'))*'US$/h'; 
+
+	OPTIONS
+	Dynamic = false;
+
+end
+
+FlowSheet Simulacao
+	
+	DEVICES
+	Corrente_1 as fonte;
+	Corrente_7 as fonte;
+	Corrente_10 as fonte;
+	Corrente_12 as fonte;
+	Reator as reator;
+	Extrator as extrator;
+	Evaporador as evaporador;
+	Condensador as condensador;
+	Misturador as misturador;
+	
+	CONNECTIONS
+	
+	Corrente_1.saida to Reator.corrente_1;
+	Reator.corrente_2 to Extrator.corrente_2;
+	Extrator.corrente_3 to Evaporador.corrente_3;
+	Evaporador.corrente_5 to Condensador.corrente_5;
+	Corrente_10.saida to Evaporador.corrente_10;
+	Condensador.corrente_6 to Misturador.corrente_6;
+	Corrente_12.saida to Condensador.corrente_12;
+	Misturador.corrente_8 to Extrator.corrente_8;
+	Corrente_7.saida to Misturador.corrente_7;
+	
+	SPECIFY
+	
+	Corrente_1.saida.W = 1.1*3484*'kg/h'; #Aumento da vazao de alimentacao em 10%
+	Corrente_1.saida.T = 300*'K';
+	Corrente_1.saida.x = [1, 0, 0, 0];
+	
+	Corrente_10.saida.T = (420)*'K';
+	Corrente_10.saida.x = [0, 0, 0, 1];
+	 
+	Corrente_7.saida.T = (300)*'K';
+	Corrente_7.saida.x = [0, 0, 1, 0];
+	
+	Corrente_12.saida.T = (285)*'K';
+	Corrente_12.saida.x = [0, 0, 0, 1];
+  
+	Reator.Vr = 0.952785 *'m^3'; #valores de Vr, Ve, Ae e Ac calculados a partir do resultado da questao 1
+	Extrator.Ve = 2.5680*'m^3';
+	Evaporador.Ae = 13.4269 *'m^2'; 
+	Condensador.Ac = 12.2203 *'m^2';
+
+	Extrator.corrente_9.x(2) = 0.95;	
+	
+	Evaporador.Tevap = 350*'K';
+
+end
+ 
+CaseStudy Case_Study as Dimensionamento
+
+	VARY
+	Evaporador.Revap = [0.75:0.005:0.99];
+
+	RESPONSE
+	Cmp;
+	Cutil;
+	ISBL;
+	LE;
+	
+	OPTIONS
+	Dynamic = false;
+end

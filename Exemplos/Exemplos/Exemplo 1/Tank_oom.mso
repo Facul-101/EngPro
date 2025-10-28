@@ -1,0 +1,86 @@
+using "types";
+
+# Source model
+Model Feed
+	
+VARIABLES	
+out F as flow_vol (Brief="Flow rate");
+	
+end
+
+# Sink model
+Model Sink
+	
+VARIABLES	
+in F as flow_vol (Brief="Flow rate");
+	
+end
+
+#*
+* Abstract Model of the tank
+*#
+Model Tank_Basic
+
+PARAMETERS
+    k as Real (Brief="Valve constant", Unit='m^2.5/h', Default = 12);
+    D as length (Brief="Tank hydraulic diameter", Default = 4);
+
+VARIABLES
+in  Fin as flow_vol (Brief="Feed flow rate");
+out Fout as flow_vol (Brief ="Output flow rate");
+	V as volume (Brief="Liquid volume");
+    h as length (Brief="Tank level");
+    A as area (Brief="Cross section area");
+
+EQUATIONS
+ "Mass balance"
+	Fin - Fout = diff(V);
+ "Valve equation"
+	Fout = k * sqrt(h);
+ "Liquid volume"
+	V = A * h;
+end
+
+#*
+* Concrete Model of the square tank
+*#
+Model Tank_Square as Tank_Basic
+
+EQUATIONS
+ "Cross section area"
+	A = D^2;
+	
+end
+
+#*
+* Concrete Model of the circular tank
+*#
+Model Tank_Circular as Tank_Basic
+
+PARAMETERS
+	Pi as Real (Default=3.1416);
+
+EQUATIONS
+ "Cross section area"
+	A = (Pi * D^2)/4;
+	
+end
+
+#*
+* Concrete Model of the square and circular tanks
+*#
+Model Tank_Section as Tank_Basic
+PARAMETERS
+	Pi as Real (Default=3.1416);
+    Section as Switcher (Valid = ["Circular", "Square"], Default = "Circular");
+	
+EQUATIONS
+   switch Section
+      case "Circular":
+	     "Cross section area"
+           A = (Pi * D^2)/4;
+      case "Square":
+	     "Cross section area"
+           A = D^2;
+   end
+end

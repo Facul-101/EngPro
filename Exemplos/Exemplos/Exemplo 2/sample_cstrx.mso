@@ -1,0 +1,69 @@
+
+using "cstr_vdvx";
+
+FlowSheet VanDerVusse
+
+ DEVICES
+	feed 		as Source_conc 	(Brief = "Feed stream");
+	reactor 	as cstr_vdv		(Brief = "Cstr reactor");
+	product 	as Sink_conc	(Brief = "Product");
+
+ CONNECTIONS
+	feed.Outlet 	to reactor.Inlet;
+	reactor.Outlet 	to product.Inlet;
+	
+ SET
+	reactor.k1 	= 10 * '1/h';
+	reactor.k2 	= 1 * '1/h';
+	reactor.k3 	= 0.5 * 'l/mol/h';
+	reactor.A 	= 5 * 'm^2';
+	reactor.Cv 	= 20 * 'm^2.5/h';
+
+ SPECIFY
+#"Inlet Molar Concentration Component A"
+	feed.Outlet.Ca = 0.6 * 'mol/m^3';
+
+#"Inlet Molar Concentration Component B"
+	feed.Outlet.Cb = 0 * 'mol/m^3';
+
+#"Inlet Molar Concentration Component C"
+	feed.Outlet.Cc = 0 * 'mol/m^3';
+
+#"Inlet Molar Concentration Component D"
+	feed.Outlet.Cd = 0 * 'mol/m^3';
+
+#"Flow"
+	feed.Outlet.Fvol = 10 * 'm^3/h';
+
+#"Temperature"
+	feed.Outlet.T = 550 * 'K';
+
+#"Temperature"
+	feed.Outlet.P = 1 * 'atm';
+
+#"Valve Opening"
+	reactor.x = 0.5; #0.5*(1+sin(time*'rad/h'));
+
+ INITIAL
+"Molar Concentration Component A"	
+	reactor.Ca = 0.6 * 'mol/m^3';
+
+"Molar Concentration Component B"	
+	reactor.Cb = 0 * 'mol/m^3';
+
+"Molar Concentration Component C"	
+	reactor.Cc = 0 * 'mol/m^3';
+
+"Molar Concentration Component D"	
+	reactor.Cd = 0 * 'mol/m^3';
+
+"Reactor Level"	
+	reactor.h = 0.5 * 'm';
+
+ OPTIONS
+  TimeStep = 0.2;
+  TimeEnd = 20;
+  TimeUnit = 'h';
+  Dynamic = true;
+
+end

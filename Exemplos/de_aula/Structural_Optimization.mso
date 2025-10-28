@@ -1,0 +1,120 @@
+using "types";
+
+FlowSheet Structural_Optimization
+	
+	PARAMETERS
+	ConvI as fraction (Brief="Rendimento do processo I");
+	ConvII as fraction (Brief="Rendimento do processo II");
+	ConvIII as fraction (Brief="Rendimento do processo III");
+	CCI as positive (Brief="Custo de capital do processo I", Unit='US$/h');
+	CCII as positive (Brief="Custo de capital do processo II", Unit='US$/h');
+	CCIII as positive (Brief="Custo de capital do processo III", Unit='US$/h');
+	COI as positive (Brief="Custo de operacao do processo I", Unit='US$/t');
+	COII as positive (Brief="Custo de operacao do processo II", Unit='US$/t');
+	COIII as positive (Brief="Custo de operacao do processo III", Unit='US$/t');
+	cA as positive (Brief="Preco de compra de A", Unit='US$/t');
+	cB as positive (Brief="Preco de compra de B", Unit='US$/t'); 
+	vC_ate10 as positive (Brief="Preco de venda de C ate vazao de 10 t/h", Unit='US$/t');
+	vC_maisde10 as positive (Brief="Preco de venda de C para vazao maior de 10 t/h", Unit='US$/t');
+	
+	SET
+	ConvI = 0.9;
+	ConvII = 0.82;
+	ConvIII = 0.95;
+	CCI = 1000*'US$/h';
+	CCII = 1500*'US$/h';
+	CCIII = 2000*'US$/h';
+	COI = 250*'US$/t';
+	COII = 400*'US$/t';
+	COIII = 550*'US$/t';
+	cA = 500*'US$/t';
+	#cB = 950*'US$/t';
+	cB = 650*'US$/t';
+	vC_ate10 = 1800*'US$/t';
+	vC_maisde10 = 1500*'US$/t';
+
+	VARIABLES
+	
+	# Variaveis binarias
+	y1 as Integer (Brief = "y1=1: executa-se o processo I e nao se compra de B, 
+							y1=0: nao se executa o processo I e compra-se B ", Lower=0, Upper=1);
+    
+	y2 as Integer (Brief = "y2=1: executa-se o processo II e nao se executa o processo III,
+							y2=0: nao se executa o processo II e executa-se o processo III", Lower=0, Upper=1);
+	
+	y3 as Integer (Brief = "y3=1: a vazao do produto C e menor ou igual a 10 t/h,
+							y3=0: vazao do produto C e mais de 10 t/h", Lower=0, Upper=1);
+    	
+	# Variaveis continuas. Denotam as vazoes de cada corrente
+    xAc as positive (Brief = "Quantidade de A que se compra", Unit='t/h');   
+    xBc as positive (Brief = "Quantidade de B que se compra", Unit='t/h'); 
+	xB as positive (Brief = "Quantidade de B se utiliza na producao de C", Unit='t/h');
+    xC as positive (Brief = "Quantidade de C que se produze",Unit='t/h');
+	
+	# Variaveis economicas
+	Receita as positive (Unit='US$/h');
+	CustoCapital as positive (Unit='US$/h');
+	CustoOperacao as positive (Unit='US$/h');
+	CustoMateriaPrima as positive (Unit='US$/h');
+	Lucro as Real (Unit='US$/h');
+	
+	EQUATIONS
+	
+	"Quantidade de B que se utiliza na producao de C"
+	xB = y1*(ConvI*xAc) + (1-y1)*xBc;
+	
+	"Quantidade de C que se produze"
+	xC = y2*(ConvII*xB) + (1-y2)*(ConvIII*xB);
+	
+	"Receita"
+	Receita = y3*(vC_ate10*xC) + (1-y3)*(vC_ate10*10*'t/h'+vC_maisde10*(xC-10*'t/h'));
+	
+	"Custo de Capital"
+	CustoCapital = y1*(CCI) + y2*(CCII) + (1-y2)*(CCIII);
+	
+	"Custo de Operacao"
+	CustoOperacao = y1*(xAc*COI) + y2*(xB*COII) + (1-y2)*(xB*COIII);
+	
+	"Custo de Materia Prima"
+	CustoMateriaPrima = y1*(xAc*cA) + (1-y1)*(xB*cB);
+	
+	"Lucro"
+	Lucro = Receita - (CustoCapital + CustoOperacao + CustoMateriaPrima);
+	
+	SPECIFY
+	y1 = 0;
+	xAc = 0*'t/h';
+	xBc = 15*'t/h';
+	y2= 1;
+	y3 = 0;
+	
+	OPTIONS
+	Dynamic = false;
+
+end
+
+Optimization Structural_Optimization_Opt as Structural_Optimization
+	
+	MAXIMIZE
+	Lucro;
+	
+	FREE
+	xAc;
+	xBc;
+	y1;
+	y2;
+	y3;
+	
+	EQUATIONS
+	xAc <= y1*20*'t/h';
+	xBc <= (1-y1)*20*'t/h';
+	xC <= y3*10*'t/h' + (1-y3)*15*'t/h';
+	xC >= (1-y3)*10*'t/h';
+ 
+	OPTIONS
+	Dynamic = false;
+	NLPSolveNLA = true;
+	NLPSolver(File = "minlp_emso", derivative_test = "second-order",
+	bonmin_algorithm = "B-BB");
+
+end

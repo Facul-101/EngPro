@@ -1,0 +1,21 @@
+
+using "ex_vdv";
+
+Optimization opt_vdv as VanDerVusse
+	MAXIMIZE
+	reactor.Cb;
+	
+	FREE
+	feed.Outlet.Fvol;
+	
+	EQUATIONS
+	feed.Outlet.Fvol > 0.01 * 'm^3/h';
+	
+	OPTIONS
+	Dynamic = false;
+	NLPSolveNLA = true;
+	NLPSolver(#File = "complex",
+			  #File = "optpp_emso",
+			  File = "ipopt_emso",
+			  RelativeAccuracy = 1e-6);
+end

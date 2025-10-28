@@ -1,0 +1,177 @@
+
+using "simple_streams";
+
+Model stream_conc as MaterialStream
+
+ATTRIBUTES
+	Pallete 	= false;
+	Brief 		= "Material stream with molar concentration.";
+	Info 		=
+"== Contents ==
+*Ca: Molar Concentration of Component A
+*Cb: Molar Concentration of Component B
+*Cc: Molar Concentration of Component C
+*Cd: Molar Concentration of Component D
+";
+	
+ VARIABLES
+
+	Ca    as conc_mol 	(Brief = "Molar concentration component A", Lower = 0, Symbol = "C_A");
+	Cb    as conc_mol	(Brief = "Molar concentration component B", Lower = 0, Symbol = "C_B");
+	Cc    as conc_mol	(Brief = "Molar concentration component C", Lower = 0, Symbol = "C_C");
+	Cd    as conc_mol	(Brief = "Molar concentration component D", Lower = 0, Symbol = "C_D");
+
+end
+
+Model Source_conc
+
+ATTRIBUTES
+	Pallete 	= true;
+	Icon 		= "icon/stream_conc"; 
+	Brief 		= "Source stream with molar concentration.";
+	Info 		=
+"==	The user should specify ==
+* Total Volumetric Flow
+* Temperature
+* Pressure
+*Ca
+*Cb
+*Cc
+*Cd
+";
+	
+ VARIABLES
+
+	out Outlet as stream_conc 	(Brief = "Feed Stream", PosX=1, PosY=0.5256);
+
+end
+
+Model Sink_conc
+
+ATTRIBUTES
+	Pallete 	= true;
+	Icon 		= "icon/stream_conc"; 
+	Brief 		= "Sink stream with molar concentration.";
+	Info 		=
+"==	Contents ==
+* Total Volumetric Flow
+* Temperature
+* Pressure
+*Ca
+*Cb
+*Cc
+*Cd
+";
+	
+ VARIABLES
+
+	in Inlet as stream_conc 	(Brief = "Product Stream", PosX=0, PosY=0.5256);
+
+end
+
+Model cstr_vdv
+
+ATTRIBUTES
+	Pallete 	= true;
+	Icon 		= "icon/cstr"; 
+	Brief 		= "Model of a cstr with Van Der Vusse Reaction.";
+	Info 		=
+"== Assumptions ==
+* the reactor is a well mixed element;
+* thermal and mechanical equilibrium;
+* only designed for Van Der Vusse Reaction;
+
+== Specify == 
+* the Inlet stream;
+
+== Setting Parameters == 
+*Reaction rate constant (k1);
+*Reaction rate constant (k2);
+*Reaction rate constant (k3);
+*Reactor Area (A);
+*Valve constant (Cv);
+
+==	Initial Conditions ==
+* the reactor initial level (h)
+* the components initial molar concentration inside reactor (Ca,Cb,Cc,Cd);
+";
+
+ PARAMETERS
+
+  k1   	as frequency 	(Brief="Reaction rate constant", DisplayUnit='1/h', Symbol = "k_1");
+  k2  	as frequency 	(Brief="Reaction rate constant", DisplayUnit='1/h', Symbol = "k_2");
+  k3  	as positive 		(Brief="Reaction rate constant", Unit='l/mol/s', Symbol = "k_3");
+  A   		as area			(Brief="Reactor area");
+  Cv  	as positive		(Brief = "Valve Constant", Default=1,Lower=0,Upper=100, Unit='m^2.5/h', Symbol = "C_v");
+
+ VARIABLES
+	V     	as volume				(Brief ="Reactor volume");
+	Ca    as conc_mol 			(Brief ="Molar concentration component A", Lower = 0, Symbol = "C_A^{cstr}");
+	Cb    as conc_mol			(Brief ="Molar concentration component B", Lower = 0, Symbol = "C_B^{cstr}");
+	Cc    as conc_mol			(Brief ="Molar concentration component C", Lower = 0, Symbol = "C_C^{cstr}");
+	Cd    as conc_mol			(Brief ="Molar concentration component D", Lower = 0, Symbol = "C_D^{cstr}");
+	h      as length				(Brief ="Reactor length");
+	tau  as time_h				(Brief ="Reactor mean residence time", Symbol = "\tau");
+	r1  	as reaction_mol		(Brief ="Reaction rate", Symbol = "r_1");
+	r2  	as reaction_mol		(Brief ="Reaction rate", Symbol = "r_2");
+	r3  	as reaction_mol		(Brief ="Reaction rate", Symbol = "r_3");
+	x		as fraction			(Brief ="valve opening fraction");
+	
+in  	Inlet  		as stream_conc	(Brief="Inlet stream",PosX=0, PosY=0, Symbol = "^{inlet}");
+out 	Outlet 	as stream_conc	(Brief="Outlet stream", PosX=1, PosY=1, Symbol = "^{outlet}");
+
+ EQUATIONS
+
+"Overall Mass Balance"
+  diff(V) = Inlet.Fvol - Outlet.Fvol;
+
+"Reaction Rate - First Reaction"
+	r1 = k1*Ca;
+
+"Reaction Rate - Second Reaction"
+	r2 = k2*Cb;
+
+"Reaction Rate - Third Reaction"
+	r3 = k3*Ca*Ca;
+
+"A Component Mass Balance"
+	tau*diff(Ca) = -tau*r1 - 2*tau*r3 + Inlet.Ca - Outlet.Ca;
+
+"B Component Mass Balance"
+	tau*diff(Cb) = tau*r1 - tau*r2 + Inlet.Cb - Outlet.Cb;
+
+"C Component Mass Balance"
+	tau* diff(Cc) = tau*r2 + Inlet.Cc - Outlet.Cc;
+
+"D Component Mass Balance"
+	tau*diff(Cd) = tau*r3 + Inlet.Cd - Outlet.Cd;
+
+"Well Mixed - A component" 
+	Outlet.Ca = Ca;
+	
+"Well Mixed - B component"
+	Outlet.Cb = Cb;
+	
+"Well Mixed - C component" 
+	Outlet.Cc = Cc;
+	
+"Well Mixed - D component"
+	Outlet.Cd = Cd;
+
+"Residence Time"
+  tau = V/Inlet.Fvol;
+
+"Reactor Volume"
+  V = A * h;
+
+"Valve Equation"
+  Outlet.Fvol = x * Cv * sqrt(h);
+
+"Thermal equilibrium"
+	Outlet.T = Inlet.T;
+	
+"Mechanical equilibrium"
+	Outlet.P = Inlet.P;
+
+end
+

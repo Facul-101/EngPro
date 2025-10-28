@@ -1,0 +1,47 @@
+using "M_base";
+
+Model Custom_Misturador
+	
+	VARIABLES
+	in	inp_1	as Custom_Corrente; # Vem do condensador - Corrente 6
+	in	inp_2	as Custom_Corrente; # Carrega com C puro - Corrente 7
+	out	output	as Custom_Corrente; # Corrente misturada - Corrente 8
+	
+	EQUATIONS
+	
+	# Balanco de massa por componente
+	inp_1.f + inp_2.f = output.f;
+	
+	# Composicao
+	sum(output.x) = 1;
+	
+	# Balanco de energia
+	sum(inp_1.f*inp_1.Cp)*inp_1.T + sum(inp_2.f*inp_2.Cp)*inp_2.T = sum(output.f*output.Cp)*output.T;
+	
+end
+
+FlowSheet teste_misturador
+
+	DEVICES
+	inp_1_eq	as Custom_Fonte;
+	inp_2_eq	as Custom_Fonte;
+	main_eq		as Custom_Misturador;
+	
+	CONNECTIONS
+	inp_1_eq.outlet to main_eq.inp_1;
+	inp_2_eq.outlet to main_eq.inp_2;
+	
+	SPECIFY
+	
+	inp_1_eq.outlet.T = 300*'K';
+	inp_1_eq.outlet.W = 30000*'kg/h';
+	inp_1_eq.outlet.x = [0, 0, 1, 0];
+	
+	inp_2_eq.outlet.T = 300*'K';
+	inp_2_eq.outlet.W = 10000*'kg/h';
+	inp_2_eq.outlet.x = [0, 0, 1, 0];
+
+	OPTIONS
+	Dynamic = false;
+
+end

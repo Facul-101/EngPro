@@ -1,0 +1,81 @@
+using "M_base";
+
+Model Custom_Evaporador
+
+	PARAMETERS
+	U as positive (Unit='kcal/(h*m^2*K)'); # Coef global de troca termica
+	
+	SET
+	U = 80*'kcal/(h*m^2*K)';
+	
+	VARIABLES
+	in  feed	as Custom_Corrente; # Vem do extrator		- Corrente 3
+	out conc	as Custom_Corrente; # Vai ser descartada	- Corrente 4 (rica em A)
+	out evap	as Custom_Corrente; # Vai ao Condensador	- Corrente 5 (pura em C)
+
+	in  vapo	as Custom_Corrente; # Entrada de D			- Corrente 10
+	out cond	as Custom_Corrente; # Saida de D			- Corrente 11
+
+	Q 			as positive (Unit='kcal/h');	# Calor fornecido ao evaporador
+	T			as positive (Unit='K');			# Temperatura interna do evaporador
+	A			as positive (Unit='m^2');		# Area para troca de calor
+
+	r_vap		as fraction; # Razao de evaparacao
+	
+	EQUATIONS
+
+	# Balanco de massa por componente
+	conc.f(conc.A) = feed.f(feed.A);
+	evap.f(evap.A) = 0*'kg/h';
+	conc.f(conc.B) = 0*'kg/h';
+	evap.f(evap.B) = 0*'kg/h';
+	conc.f(conc.C) = feed.f(feed.C)*(1 - r_vap);
+	evap.f(evap.C) = feed.f(feed.C)*r_vap;
+	conc.f(conc.D) = 0*'kg/h';
+	evap.f(evap.D) = 0*'kg/h';
+	vapo.f = cond.f;
+	
+	# Composicao
+	sum(conc.x) = 1;
+	sum(evap.x) = 1;
+	sum(cond.x) = 1;
+
+	# Balanco de energia
+	Q = vapo.W*vapo.lat(vapo.D);
+	Q = sum(feed.f*feed.Cp)*(T - feed.T) + evap.W*evap.lat(evap.C);
+	Q = U*A*(vapo.T - T);
+
+	# Equilibrio terminco
+	conc.T = T;
+	evap.T = T;
+	vapo.T = cond.T;
+
+end
+
+FlowSheet teste_evaporador
+
+	DEVICES
+	feed_eq	as Custom_Fonte;
+	vapo_eq	as Custom_Fonte;
+	main_eq	as Custom_Evaporador;
+
+	CONNECTIONS
+	feed_eq.outlet	to main_eq.feed;
+	vapo_eq.outlet	to main_eq.vapo;
+
+	SPECIFY
+	
+	feed_eq.outlet.T = 300*'K';
+	feed_eq.outlet.W = 5000*'kg/h';
+	feed_eq.outlet.f = [2000, 0, 3000, 0]*'kg/h';
+
+	vapo_eq.outlet.T = 450*'K';
+	vapo_eq.outlet.x = [0, 0, 0, 1];
+
+	main_eq.T = 350*'K';
+	main_eq.conc.x(main_eq.conc.C) = 0.1;
+
+	OPTIONS
+	Dynamic = false;
+
+end

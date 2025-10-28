@@ -1,0 +1,76 @@
+using "M_base";
+
+Model Custom_Extrator
+
+    VARIABLES
+    in  feed    as Custom_Corrente; # Vem do reator     - Corrente 2
+    out extr    as Custom_Corrente; # Saida solvente    - Corrente 3
+
+    in  solv    as Custom_Corrente; # Vem do misturador - Corrente 8
+    out rafi    as Custom_Corrente; # Libera produto    - Corrente 9
+    
+    T           as positive (Unit='K');		# Temperatura do equipamento
+	t           as positive (Unit='h'); 	# Tempo de residencia
+	k_t         as positive; 				# Constante de equilibrio L-L termica
+	k_r         as positive; 				# Constante de equilibrio L-L real
+	r           as positive; 				# Fracao repuperada
+	V           as positive (Unit='l');		# Volume do equipamento
+
+    EQUATIONS
+
+    # Balanco de massa por componente
+    extr.f(extr.A) = feed.f(feed.A)*r;
+    extr.f(extr.B) = 0*'kg/h';
+    extr.f(extr.C) = solv.f(solv.C);
+    extr.f(extr.D) = 0*'kg/h';
+    rafi.f(rafi.A) = feed.f(feed.A)*(1 - r);
+    rafi.f(rafi.B) = feed.f(feed.B);
+    rafi.f(rafi.C) = 0*'kg/h';
+    rafi.f(rafi.D) = 0*'kg/h';
+
+    # Composicao
+    sum(extr.x) = 1;
+    sum(rafi.x) = 1;
+
+    # Equilibrio L-L
+    k_t = 3 + 0.04*(T*'1/K' - 273);
+    k_r = k_t*(1 - exp((-10)*t*'1/h'));
+    extr.x(extr.A) = k_r*rafi.x(rafi.A);
+
+    #Balanco de energia
+    sum(feed.f*feed.Cp)*feed.T + sum(solv.f*solv.Cp)*solv.T = sum(extr.f*extr.Cp)*extr.T + sum(rafi.f*rafi.Cp)*rafi.T;
+
+    # Volume
+    V = sum(feed.f/feed.rho + solv.f/solv.rho)*t;
+
+    # Equilibrio termico
+    extr.T = T;
+    rafi.T = T;
+
+end
+
+FlowSheet teste_extrator
+    DEVICES
+	feed_eq as Custom_Fonte;
+	solv_eq	as Custom_Fonte;
+	main_eq	as Custom_Extrator;
+
+	CONNECTIONS
+	feed_eq.outlet	to main_eq.feed;
+	solv_eq.outlet	to main_eq.solv;
+
+	SPECIFY
+	
+	feed_eq.outlet.T = 310*'K';
+	feed_eq.outlet.W = 100000*'kg/h';
+	feed_eq.outlet.x = [0.002, 0.998, 0, 0];
+
+	solv_eq.outlet.T = 310*'K';
+	solv_eq.outlet.x = [0, 0, 1, 0];
+
+	main_eq.t = 0.75*'h';
+	main_eq.r = 0.8;
+
+	OPTIONS
+	Dynamic = false;
+end

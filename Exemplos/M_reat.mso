@@ -1,0 +1,54 @@
+using "M_base";
+
+Model Custom_Reator
+
+    VARIABLES
+    in  feed as Custom_Corrente; # Corrente inicial     - Corrente 1
+    out reag as Custom_Corrente; # Resultado do reacao  - Corrente 2
+
+    conv    as fraction; 				# Conversao da reacao
+    t       as positive (Unit='h'); 	# empo de reacao
+    V       as positive (Unit='m^3'); 	# Volume do reator
+
+    EQUATIONS
+
+    # Conversao da reacao
+    conv = 0.92*(1-exp(-20*t*'1/h'));
+
+    # Balanco de massa por componente
+    reag.f(reag.A) = feed.f(reag.A) - feed.f(reag.A)*conv;
+    reag.f(reag.B) = feed.f(reag.B) + feed.f(reag.A)*conv;
+    reag.f(reag.C) = feed.f(reag.C);
+    reag.f(reag.D) = feed.f(reag.D);
+
+    # Composicao
+    sum(reag.x) = 1;
+    
+    # Balanco termico
+    reag.T = feed.T;
+
+    # Volume
+    V = sum(feed.f/feed.rho)*t;
+
+end
+
+FlowSheet teste_reator
+
+    DEVICES
+    feed_eq as Custom_Fonte;
+    main_eq as Custom_Reator;
+
+    CONNECTIONS
+    feed_eq.outlet to main_eq.feed;
+    
+	SPECIFY
+	feed_eq.outlet.T = 300*'K';
+	feed_eq.outlet.W = 1539*'kg/h';
+	feed_eq.outlet.x = [1, 0, 0, 0];
+	
+	main_eq.conv = 0.90;
+	
+	OPTIONS
+	Dynamic = false;
+
+end

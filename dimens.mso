@@ -1,0 +1,82 @@
+using "M_cond";
+using "M_evap";
+using "M_extr";
+using "M_mist";
+using "M_reat";
+
+FlowSheet Dimensionamento
+
+	DEVICES
+	
+	fonte_1		as Custom_Fonte;
+	fonte_7		as Custom_Fonte;
+	fonte_10	as Custom_Fonte;
+	fonte_12	as Custom_Fonte;
+	
+	_reator			as Custom_Reator;
+	_extrator		as Custom_Extrator;
+	_evaporador		as Custom_Evaporador;
+	_condensador	as Custom_Condensador;
+	_misturador		as Custom_Misturador;
+	
+	CONNECTIONS
+	
+	fonte_1.outlet			to _reator.feed; 			# 1
+	_reator.reag			to _extrator.feed; 			# 2
+	_extrator.extr			to _evaporador.feed;		# 3
+														# 4 - global output
+	_evaporador.evap		to _condensador.i_quente;	# 5
+	_condensador.o_quente	to _misturador.inp_1;		# 6
+	fonte_7.outlet			to _misturador.inp_2;		# 7
+	_misturador.output		to _extrator.solv;			# 8
+														# 9 - global output
+	fonte_10.outlet			to _evaporador.vapo;		# 10
+														# 11 - global output
+	fonte_12.outlet			to _condensador.i_fria;		# 12
+														# 13 - global output
+	
+	SPECIFY
+	
+	# Variaveis conhecidas
+	fonte_1.outlet.W = 1539*'kg/h';
+	fonte_1.outlet.T = 300*'K';
+	fonte_1.outlet.x = [1, 0, 0, 0];		# Comp A puro
+	
+	fonte_7.outlet.T = 300*'K';
+	fonte_7.outlet.x = [0, 0, 1, 0];		# Comp C puro	
+	
+	fonte_10.outlet.T = 420*'K';
+	fonte_10.outlet.x = [0, 0, 0, 1];		# Comp D puro
+	
+	fonte_12.outlet.T = 285*'K';
+	fonte_12.outlet.x = [0, 0, 0, 1]; 		# Comp D puro
+	
+	# Metas de projeto
+	_reator.conv = 0.9;
+	_extrator.rafi.x(2) = 0.95;				# Comp B com um pouco de A
+	_extrator.t = 0.75*'h';
+	_evaporador.T = 350*'K';
+	_evaporador.r_vap = 0.9;
+	_condensador.o_fria.T = 300*'K';
+	
+	
+
+	VARIABLES
+	R 		as positive (Unit='US$/h');
+	Cmp 	as positive (Unit='US$/h');
+	Cutil 	as positive (Unit='US$/h');
+	ISBL 	as positive (Unit='US$/h');
+	LE 		as Real 	(Unit='US$/h');
+	
+	EQUATIONS
+	
+	R 		= (0.09*_extrator.rafi.f(2))*'US$/kg';
+	Cmp 	= (0.03*fonte_1.outlet.W + 0.0115*fonte_7.outlet.W)*'US$/kg';
+	Cutil 	= (0.0015*fonte_10.outlet.W + 0.00005*fonte_12.outlet.W)*'US$/kg';
+	ISBL 	= 0.0006*(272.51*(((_reator.V + _extrator.V)*'1/m^3')^0.6)+(8352.73*((_condensador.A + _evaporador.A)*'1/m^2')^0.5))*'US$/h';
+	LE 		= (0.48*R-0.68*(Cmp+Cutil)-0.54*ISBL);
+	
+	OPTIONS
+	Dynamic = false;
+	
+end

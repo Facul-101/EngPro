@@ -1,0 +1,50 @@
+using "types";
+
+FlowSheet PV_Flow
+	VARIABLES
+	T as temperature;
+	PV as pressure;
+
+	PARAMETERS
+	A as Real(Default=1.5);
+	B as temperature(Default=1000);
+	C as temperature(Default=50);
+
+	SPECIFY
+	T = 350 * 'K';
+	
+	EQUATIONS
+	PV = exp(A - B/(T-C)) * 'atm';
+	
+	OPTIONS
+	Dynamic = false;
+end
+
+Estimation PV_Est as PV_Flow
+
+	ESTIMATE
+	# PAR   START  LOWER  UPPER  UNIT
+	A       1.5    -3     10;
+	B       1000   800    3000  'K';
+	C       50     20     200	'K';
+
+	EXPERIMENTS
+	# FILE                WEIGTH
+	"pv_est.dat"      		1;
+
+	OPTIONS
+	NumJac = false;
+
+	Statistics(
+		Fit=true,
+		Parameter=true,
+		Prediction=true
+	);
+	Significance = 0.95;
+
+	NLPSolver(
+		File = "ipopt_emso"
+		#File = "complex"
+	);
+	Dynamic = false;
+end

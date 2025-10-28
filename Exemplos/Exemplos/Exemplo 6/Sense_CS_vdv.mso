@@ -1,0 +1,23 @@
+using "ex_vdv";
+
+CaseStudy cs_vdv as VanDerVusse
+	VARY
+	feed.Outlet.Fvol = [25:0.5:30]*'m^3/h';
+		
+	RESPONSE
+	reactor.Cb;
+	
+	OPTIONS
+	Dynamic = false;
+end
+
+Sensitivity st_vdv as VanDerVusse
+	VARY
+	feed.Outlet.Fvol;
+
+	RESPONSE
+	reactor.Cb;
+	
+	OPTIONS
+	Dynamic = false;
+end

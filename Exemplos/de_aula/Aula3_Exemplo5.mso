@@ -1,0 +1,54 @@
+using "types";
+
+FlowSheet Temperatura_Reator
+
+VARIABLES
+T as positive;
+k1 as positive;
+k2 as positive;
+razao as positive;
+
+
+EQUATIONS
+
+k1 = 18.2*exp(-13.6/T);
+
+k2 = 11.7*exp(-3.43/T);
+
+razao = k1/k2;
+
+SPECIFY
+T = 500;
+
+OPTIONS
+	Dynamic = false;
+
+
+end
+
+
+FlowSheet Temperatura_Reator_grafico
+
+VARIABLES
+T as positive;
+k1 as positive;
+k2 as positive;
+razao as positive;
+
+EQUATIONS
+
+T = time*'1/s';
+
+k1 = 18.2*exp(-13.6/T);
+
+k2 = 11.7*exp(-3.43/T);
+
+razao = k1/k2;
+
+OPTIONS
+	TimeStart = 300;
+	TimeStep = 1;
+	TimeEnd = 500;
+	TimeUnit = 's';
+
+end

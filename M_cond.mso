@@ -1,0 +1,74 @@
+using "M_base";
+
+Model Custom_Condensador
+	
+	PARAMETERS
+	U as positive (Unit='kcal/(h*m^2*K)'); # kcal/(h*m^2*K)	- Coef global de troca de calor
+	
+	SET
+	U = 120*'kcal/(h*m^2*K)';
+	
+	VARIABLES
+	in  i_quente	as Custom_Corrente; # Vem do evaporador 	- Corrente 5
+	out o_quente	as Custom_Corrente; # Vai para o mist.		- Corrente 6
+	
+	in  i_fria		as Custom_Corrente; # Entrada resfriacao	- Corrente 12
+	out o_fria		as Custom_Corrente; # Saida resfriacao		- Corrente 13
+	
+	A		as positive (Unit='m^2');
+	Q		as positive (Unit='kcal/h');
+	DT1		as positive (Unit='K');
+	DT2		as positive (Unit='K');
+	DTML	as positive (Unit='K');
+	
+	EQUATIONS
+	
+	# Balanco de massa por componente
+	i_quente.f = o_quente.f;
+	i_fria.f = o_fria.f;
+	
+	# Composicao
+	sum(o_quente.x) = 1;
+	sum(o_fria.x) = 1;
+	
+	# Balanco de energia
+	Q = sum(i_fria.f*i_fria.Cp)*(o_fria.T - i_fria.T);
+	Q = i_quente.W*i_quente.lat(i_quente.C);
+	
+	# Balanco termodinamico
+	o_quente.T = i_quente.T;
+	
+	# Modelo do condensador
+	DT1  = i_quente.T - o_fria.T;
+	DT2  = o_quente.T - i_fria.T;
+	DTML = (DT1 - DT2)/ln(DT1/DT2);
+	Q    = U*A*DTML;
+
+end
+
+
+FlowSheet teste_condensador
+	
+	DEVICES
+	i_quente_eq	as Custom_Fonte;
+	i_fria_eq	as Custom_Fonte;
+	main_eq		as Custom_Condensador;
+	
+	CONNECTIONS
+	i_quente_eq.outlet	to main_eq.i_quente;
+	i_fria_eq.outlet	to main_eq.i_fria;
+	
+	SPECIFY
+	i_quente_eq.outlet.T = 300*'K';
+	i_quente_eq.outlet.W = 30000*'kg/h';
+	i_quente_eq.outlet.x = [0, 0, 1, 0];
+	
+	i_fria_eq.outlet.T = 250*'K';
+	i_fria_eq.outlet.x = [0, 0, 0, 1];
+	
+	main_eq.o_fria.T = 275*'K';
+
+	OPTIONS
+	Dynamic = false;
+
+end

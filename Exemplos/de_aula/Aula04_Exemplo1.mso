@@ -1,0 +1,98 @@
+using "types";
+
+
+FlowSheet balanceamento_reacoes
+	
+	PARAMETERS
+	n_comp as Integer;
+	ind_prod_pinc as Integer;
+	n_reac as Integer;
+	M_Esteq(n_reac,n_comp) as Real (Unit = 'mol');
+	preco_venda(n_comp) as positive (Unit = 'US$/mol');
+	custo_compra(n_comp) as positive (Unit = 'US$/mol');
+	
+	SET
+	n_comp = 7;
+	ind_prod_pinc = 7;
+	n_reac = 3;
+	#Componente      A   B   C   D     E  F  M
+	M_Esteq(1,:) = [-1, -1,  0,  1,    0, 0, 0]*'mol';
+	M_Esteq(2,:) = [ 0,  0,  1, -1,    0, 0, 1]*'mol';
+	M_Esteq(3,:) = [ 1,  0, -2,  0, -1/2, 1, 0]*'mol';
+	#Componente        A     B      C      D    E     F     M
+	custo_compra = [2.80, 0.84, 14.40, 3.43, 0.00, 0.00, 3.10]*'US$/mol';
+	preco_venda =  [2.80, 0.84,  0.00, 3.43, 0.00, 0.00, 3.10]*'US$/mol';
+	
+	VARIABLES
+	x(n_reac) as positive (Default = 1);
+	M_balanceada(n_reac,n_comp) as Real (Unit = 'mol');
+	G(n_comp) as Real (Unit='mol');
+	Custo(n_comp) as Real (Unit='US$');
+	N_prod_pinc as positive (Unit = 'mol');
+	Receita(n_comp) as Real (Unit='US$');
+	Custo_total as Real (Unit='US$');
+	Receita_total as Real (Unit='US$');
+	MB as Real (Unit = 'US$');
+	MB_mol_prod_princ as Real (Unit = 'US$/mol');
+	
+	EQUATIONS
+	
+	for i in [1:n_reac] do
+		M_balanceada(i,:) = M_Esteq(i,:)*x(i);  
+	end
+	
+	for j in [1:n_comp] do
+		G(j) = sum(M_balanceada(:,j));
+	end 
+	
+	N_prod_pinc = G(ind_prod_pinc);
+	
+	for j in [1:n_comp] do
+		if G(j) < 0*'mol' then
+			Custo(j) = G(j)*custo_compra(j);
+		else
+			Custo(j) = 0*'US$';	
+		end
+	end
+	
+	for j in [1:n_comp] do
+		if G(j) > 0*'mol' then
+			Receita(j) = G(j)*preco_venda(j);
+		else
+			Receita(j) = 0*'US$';	
+		end
+	end
+	
+	Custo_total = sum(Custo);
+	Receita_total = sum(Receita);
+	MB = Receita_total + Custo_total;
+	MB_mol_prod_princ = MB / N_prod_pinc;
+	
+	
+	SPECIFY
+	x(1) = 1; x(2) = 1; x(3) = 1;
+	
+	OPTIONS
+	Dynamic = false;
+	
+end
+
+Optimization OPT as balanceamento_reacoes
+	
+	MAXIMIZE 
+	MB_mol_prod_princ;
+	
+	FREE
+	x(1);
+	x(3);
+	
+	OPTIONS
+	Dynamic = false;
+	NLPSolveNLA = false;
+	FeasiblePath = true;
+	NLPSolver(File = "complex",
+			  #File = "ipopt_emso",
+			  MaxIterations = 500,
+			  RelativeAccuracy = 1e-6);
+end
+

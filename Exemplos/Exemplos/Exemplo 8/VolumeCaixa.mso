@@ -1,0 +1,44 @@
+using "types.mso";	
+	
+	FlowSheet VolumeCaixa
+	
+	VARIABLES
+	V as volume;
+	A as area;
+	a as length;
+	b as length;
+	h as length;
+	
+	SPECIFY
+	A = 12 * 'm^2';
+	a = 2 * 'm';
+	b =5 * 'm';
+	
+	EQUATIONS
+	A = a*b + 2*a*h + 2*b*h;
+	V = a*b*h;
+	
+	OPTIONS
+	Dynamic = false;
+	
+end
+
+
+	Optimization VolumeOptimization as VolumeCaixa
+	
+	MAXIMIZE
+	V;
+	
+	FREE
+	a;
+	b;
+	
+	EQUATIONS
+	a > 0 * 'm' ;
+	b > 0 * 'm';
+	h > 0 * 'm';
+	
+	OPTIONS
+	NLPSolver(File = "ipopt_emso" );
+	Dynamic = false;
+end
