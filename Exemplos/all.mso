@@ -399,7 +399,7 @@ FlowSheet Dimensionamento
 	SPECIFY
 	
 	# Variaveis conhecidas
-	fonte_1.outlet.W = 1539*'kg/h';
+	fonte_1.outlet.W = 1500*'kg/h';
 	fonte_1.outlet.T = 300*'K';
 	fonte_1.outlet.x = [1, 0, 0, 0];
 	
