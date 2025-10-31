@@ -46,8 +46,8 @@ end
 Model novo_reator
 
     VARIABLES
-    in  co_1 as nova_corrente; # Corrente inicial     - Corrente 1
-    out co_2 as nova_corrente; # Resultado do reacao  - Corrente 2
+    in  co_1 as nova_corrente;
+    out co_2 as nova_corrente;
 
     conv    as fraction;
     t       as positive (Unit='h');
@@ -100,10 +100,10 @@ Model novo_extrator
 
     VARIABLES
     in  co_2    as nova_corrente;
-    out co_3    as nova_corrente; # Saida solvente    - Corrente 3
+    out co_3    as nova_corrente;
 
-    in  co_8    as nova_corrente; # Vem do misturador - Corrente 8
-    out co_9    as nova_corrente; # Libera produto    - Corrente 9
+    in  co_8    as nova_corrente;
+    out co_9    as nova_corrente;
     
     T           as positive (Unit='K');
 	t           as positive (Unit='h');
@@ -131,7 +131,7 @@ Model novo_extrator
     "Equilibrio L-L"
     k_t = 3 + 0.04*(T*'1/K' - 273);
     k_r = k_t*(1 - exp(-10*t*'1/h'));
-    co_3.x(co_3.A) = k_r*co_9.x(co_9.A); # TEST
+    co_3.x(co_3.A) = k_r*co_9.x(co_9.A);
 
     "Balanco de energia"
     sum(co_2.f*co_2.Cp)*co_2.T + sum(co_8.f*co_8.Cp)*co_8.T = sum(co_3.f*co_3.Cp)*co_3.T + sum(co_9.f*co_9.Cp)*co_9.T;
@@ -180,18 +180,18 @@ Model novo_evaporador
 	U = 80*'kcal/(h*m^2*K)';
 	
 	VARIABLES
-	in  co_3	as nova_corrente; # Vem do extrator		- Corrente 3
-	out co_4	as nova_corrente; # Vai ser descartada	- Corrente 4 (rica em A)
-	out co_5	as nova_corrente; # Vai ao Condensador	- Corrente 5 (pura em C)
+	in  co_3	as nova_corrente;
+	out co_4	as nova_corrente;
+	out co_5	as nova_corrente;
 
-	in  co_10	as nova_corrente; # Entrada de D			- Corrente 10
-	out co_11	as nova_corrente; # Saida de D			- Corrente 11
+	in  co_10	as nova_corrente;
+	out co_11	as nova_corrente;
 
-	Q 			as positive (Unit='kcal/h');	# Calor fornecido ao evaporador
-	T			as positive (Unit='K');			# Temperatura interna do evaporador
-	A			as positive (Unit='m^2');		# Area para troca de calor
+	Q 			as positive (Unit='kcal/h');
+	T			as positive (Unit='K');
+	A			as positive (Unit='m^2');
 
-	r			as fraction; # Razao de evaparacao
+	r			as fraction;
 	
 	EQUATIONS
 
@@ -260,11 +260,11 @@ Model novo_condensador
 	U = 120*'kcal/(h*m^2*K)';
 	
 	VARIABLES
-	in  co_5	as nova_corrente; # Vem do evaporador 	- Corrente 5
-	out co_6	as nova_corrente; # Vai para o mist.		- Corrente 6
+	in  co_5	as nova_corrente;
+	out co_6	as nova_corrente;
 	
-	in  co_12	as nova_corrente; # Entrada resfriacao	- Corrente 12
-	out co_13	as nova_corrente; # Saida resfriacao		- Corrente 13
+	in  co_12	as nova_corrente;
+	out co_13	as nova_corrente;
 	
 	A		as positive (Unit='m^2');
 	Q		as positive (Unit='kcal/h');
@@ -326,9 +326,9 @@ end
 Model novo_misturador
 	
 	VARIABLES
-	in	co_6	as nova_corrente; # Vem do condensador - Corrente 6
-	in	co_7	as nova_corrente; # Carrega com C puro - Corrente 7
-	out	co_8	as nova_corrente; # Corrente misturada - Corrente 8
+	in	co_6	as nova_corrente;
+	in	co_7	as nova_corrente;
+	out	co_8	as nova_corrente;
 	
 	EQUATIONS
 	
