@@ -1,0 +1,453 @@
+using "types";
+
+Model nova_corrente
+
+	PARAMETERS
+	A as Integer;
+	B as Integer;
+	C as Integer;
+	D as Integer;
+	
+	Cp(4)	as positive (Unit='kcal/(kg*K)');
+	lat(4)	as positive (Unit='kcal/kg');
+	rho(4)	as positive (Unit='kg/l');
+	
+	SET
+	A = 1;
+	B = 2;
+	C = 3;
+	D = 4;
+	
+	Cp = [0.5, 0.6, 0.7, 1.0]*'kcal/(kg*K)';
+	lat = [0, 0, 150, 450]*'kcal/kg';
+	rho = [0.6, 0.7, 0.8, 1]*'kg/l';
+	
+	VARIABLES
+	W 		as positive (Unit='kg/h');
+	T 		as positive (Unit='K');
+	x(4)	as fraction;
+	f(4)	as positive (Unit='kg/h');
+	sum_cop	as positive;
+	
+	
+	EQUATIONS
+	f = x*W;
+	sum_cop = sum(x);
+
+end
+
+Model nova_fonte
+
+	VARIABLES
+	out	outlet as nova_corrente;
+
+end
+
+Model novo_reator
+
+    VARIABLES
+    in  co_1 as nova_corrente; # Corrente inicial     - Corrente 1
+    out co_2 as nova_corrente; # Resultado do reacao  - Corrente 2
+
+    conv    as fraction;
+    t       as positive (Unit='h');
+    V       as positive (Unit='l');
+
+    EQUATIONS
+
+    " Conversao da reacao "
+    conv = 0.92*(1 - exp((-20)*t*'1/h'));
+
+    "Balanco de massa por componente"
+    co_2.f(co_2.A) = co_1.f(co_1.A) - co_1.f(co_1.A)*conv;
+    co_2.f(co_2.B) = co_1.f(co_1.B) + co_1.f(co_1.A)*conv;
+    co_2.f(co_2.C) = co_1.f(co_1.C);
+    co_2.f(co_2.D) = co_1.f(co_1.D);
+
+    "Composicao"
+    sum(co_2.x) = 1;
+    
+    "Balanco termico"
+    co_2.T = co_1.T;
+
+    "Volume"
+    V = sum(co_1.f/co_1.rho)*t;
+
+end
+
+FlowSheet teste_reator
+
+    DEVICES
+    feed_eq as nova_fonte;
+    eq_atual as novo_reator;
+
+    CONNECTIONS
+    feed_eq.outlet to eq_atual.co_1;
+    
+	SPECIFY
+	feed_eq.outlet.T = 300*'K';
+	feed_eq.outlet.W = 1500*'kg/h';
+	feed_eq.outlet.x = [1, 0, 0, 0];
+	
+	eq_atual.conv = 0.9;
+	
+	OPTIONS
+	Dynamic = false;
+
+end
+
+Model novo_extrator   
+
+    VARIABLES
+    in  co_2    as nova_corrente;
+    out co_3    as nova_corrente; # Saida solvente    - Corrente 3
+
+    in  co_8    as nova_corrente; # Vem do misturador - Corrente 8
+    out co_9    as nova_corrente; # Libera produto    - Corrente 9
+    
+    T           as positive (Unit='K');
+	t           as positive (Unit='h');
+	k_t         as positive;
+	k_r         as positive;
+	r           as positive;
+	V           as positive (Unit='l');
+
+    EQUATIONS
+
+    "Balanco de massa por componente"
+    co_3.f(co_3.A) = co_2.f(co_2.A)*r;
+    co_3.f(co_3.B) = 0*'kg/h';
+    co_3.f(co_3.C) = co_8.f(co_8.C);
+    co_3.f(co_3.D) = 0*'kg/h';
+    co_9.f(co_9.A) = co_2.f(co_2.A)*(1 - r);
+    co_9.f(co_9.B) = co_2.f(co_2.B);
+    co_9.f(co_9.C) = 0*'kg/h';
+    co_9.f(co_9.D) = 0*'kg/h';
+
+    "Composicao"
+    sum(co_3.x) = 1;
+    sum(co_9.x) = 1;
+
+    "Equilibrio L-L"
+    k_t = 3 + 0.04*(T*'1/K' - 273);
+    k_r = k_t*(1 - exp(-10*t*'1/h'));
+    co_3.x(co_3.A) = k_r*co_9.x(co_9.A); # TEST
+
+    "Balanco de energia"
+    sum(co_2.f*co_2.Cp)*co_2.T + sum(co_8.f*co_8.Cp)*co_8.T = sum(co_3.f*co_3.Cp)*co_3.T + sum(co_9.f*co_9.Cp)*co_9.T;
+
+    "Volume"
+    V = sum(co_2.f/co_2.rho + co_8.f/co_8.rho)*t;
+
+    "Equilibrio termico"
+    co_3.T = T;
+    co_9.T = T;
+
+end
+
+FlowSheet teste_extrator
+    DEVICES
+	feed_eq as nova_fonte;
+	solv_eq	as nova_fonte;
+	eq_atual	as novo_extrator;
+
+	CONNECTIONS
+	feed_eq.outlet	to eq_atual.co_2;
+	solv_eq.outlet	to eq_atual.co_8;
+
+	SPECIFY
+	
+	feed_eq.outlet.T = 300*'K';
+	feed_eq.outlet.W = 500*'kg/h';
+	feed_eq.outlet.x = [0.1, 0.9, 0, 0];
+
+	solv_eq.outlet.T = 400*'K';
+	solv_eq.outlet.x = [0, 0, 1, 0];
+
+	eq_atual.t = 0.75*'h';
+	eq_atual.co_9.x(2) = 0.95;
+
+	OPTIONS
+	Dynamic = false;
+end
+
+Model novo_evaporador
+
+	PARAMETERS
+	U as positive (Unit='kcal/(h*m^2*K)');
+	
+	SET
+	U = 80*'kcal/(h*m^2*K)';
+	
+	VARIABLES
+	in  co_3	as nova_corrente; # Vem do extrator		- Corrente 3
+	out co_4	as nova_corrente; # Vai ser descartada	- Corrente 4 (rica em A)
+	out co_5	as nova_corrente; # Vai ao Condensador	- Corrente 5 (pura em C)
+
+	in  co_10	as nova_corrente; # Entrada de D			- Corrente 10
+	out co_11	as nova_corrente; # Saida de D			- Corrente 11
+
+	Q 			as positive (Unit='kcal/h');	# Calor fornecido ao evaporador
+	T			as positive (Unit='K');			# Temperatura interna do evaporador
+	A			as positive (Unit='m^2');		# Area para troca de calor
+
+	r			as fraction; # Razao de evaparacao
+	
+	EQUATIONS
+
+	"Balanco de massa por componente"
+	co_4.f(co_4.A) = co_3.f(co_3.A);
+	co_5.f(co_5.A) = 0*'kg/h';
+	co_4.f(co_4.B) = 0*'kg/h';
+	co_5.f(co_5.B) = 0*'kg/h';
+	co_4.f(co_4.C) = co_3.f(co_3.C)*(1 - r);
+	co_5.f(co_5.C) = co_3.f(co_3.C)*r;
+	co_4.f(co_4.D) = 0*'kg/h';
+	co_5.f(co_5.D) = 0*'kg/h';
+	co_10.f = co_11.f;
+	
+	"Composicao"
+	sum(co_4.x) = 1;
+	sum(co_5.x) = 1;
+	sum(co_11.x) = 1;
+
+	"Balanco de energia"
+	Q = co_10.W*co_10.lat(co_10.D);
+	Q = sum(co_3.f*co_3.Cp)*(T - co_3.T) + co_5.W*co_5.lat(co_5.C);
+	Q = U*A*(co_10.T - T);
+
+	"Equilibrio terminco"
+	co_4.T = T;
+	co_5.T = T;
+	co_10.T = co_11.T;
+
+end
+
+FlowSheet teste_evaporador
+
+	DEVICES
+	feed_eq	as nova_fonte;
+	vapo_eq	as nova_fonte;
+	eq_atual	as novo_evaporador;
+
+	CONNECTIONS
+	feed_eq.outlet	to eq_atual.co_3;
+	vapo_eq.outlet	to eq_atual.co_10;
+
+	SPECIFY
+	
+	feed_eq.outlet.T = 320*'K';
+	feed_eq.outlet.W = 500*'kg/h';
+	feed_eq.outlet.x = [0.5, 0, 0.5, 0];
+
+	vapo_eq.outlet.T = 420*'K';
+	vapo_eq.outlet.x = [0, 0, 0, 1];
+
+	eq_atual.r = 0.9;
+	eq_atual.T = 350*'K';
+
+	OPTIONS
+	Dynamic = false;
+
+end
+
+Model novo_condensador
+	
+	PARAMETERS
+	U as positive (Unit='kcal/(h*m^2*K)');
+	
+	SET
+	U = 120*'kcal/(h*m^2*K)';
+	
+	VARIABLES
+	in  co_5	as nova_corrente; # Vem do evaporador 	- Corrente 5
+	out co_6	as nova_corrente; # Vai para o mist.		- Corrente 6
+	
+	in  co_12	as nova_corrente; # Entrada resfriacao	- Corrente 12
+	out co_13	as nova_corrente; # Saida resfriacao		- Corrente 13
+	
+	A		as positive (Unit='m^2');
+	Q		as positive (Unit='kcal/h');
+	DT1		as positive (Unit='K');
+	DT2		as positive (Unit='K');
+	DTML	as positive (Unit='K');
+	
+	EQUATIONS
+	
+	"Balanco de massa por componente"
+	co_5.f = co_6.f;
+	co_12.f = co_13.f;
+	
+	"Composicao"
+	sum(co_6.x) = 1;
+	sum(co_13.x) = 1;
+	
+	"Balanco de energia"
+	Q = sum(co_12.f*co_12.Cp)*(co_13.T - co_12.T);
+	Q = co_5.W*co_5.lat(co_5.C);
+	
+	"Balanco termodinamico"
+	co_6.T = co_5.T;
+	
+	"Modelo do condensador"
+	DT1  = co_5.T - co_13.T;
+	DT2  = co_6.T - co_12.T;
+	DTML = (DT1 - DT2)/ln(DT1/DT2);
+	Q    = U*A*DTML;
+
+end
+
+FlowSheet teste_condensador
+	
+	DEVICES
+	i_quente_eq	as nova_fonte;
+	i_fria_eq	as nova_fonte;
+	eq_atual		as novo_condensador;
+	
+	CONNECTIONS
+	i_quente_eq.outlet	to eq_atual.co_5;
+	i_fria_eq.outlet	to eq_atual.co_12;
+	
+	SPECIFY
+	i_quente_eq.outlet.T = 350*'K';
+	i_quente_eq.outlet.W = 300*'kg/h';
+	i_quente_eq.outlet.x = [0, 0, 1, 0];
+	
+	i_fria_eq.outlet.T = 285*'K';
+	i_fria_eq.outlet.x = [0, 0, 0, 1];
+	
+	eq_atual.co_13.T = 300*'K';
+
+	OPTIONS
+	Dynamic = false;
+
+end
+
+Model novo_misturador
+	
+	VARIABLES
+	in	co_6	as nova_corrente; # Vem do condensador - Corrente 6
+	in	co_7	as nova_corrente; # Carrega com C puro - Corrente 7
+	out	co_8	as nova_corrente; # Corrente misturada - Corrente 8
+	
+	EQUATIONS
+	
+	"Balanco de massa por componente"
+	co_6.f + co_7.f = co_8.f;
+	
+	"Composicao"
+	sum(co_8.x) = 1;
+	
+	"Balanco de energia"
+	sum(co_6.f*co_6.Cp)*co_6.T + sum(co_7.f*co_7.Cp)*co_7.T = sum(co_8.f*co_8.Cp)*co_8.T;
+	
+end
+
+FlowSheet teste_misturador
+
+	DEVICES
+	inp_1_eq	as nova_fonte;
+	inp_2_eq	as nova_fonte;
+	eq_atual	as novo_misturador;
+	
+	CONNECTIONS
+	inp_1_eq.outlet to eq_atual.co_6;
+	inp_2_eq.outlet to eq_atual.co_7;
+	
+	SPECIFY
+	
+	inp_1_eq.outlet.T = 400*'K';
+	inp_1_eq.outlet.W = 1000*'kg/h';
+	inp_1_eq.outlet.x = [0, 0, 1, 0];
+	
+	inp_2_eq.outlet.T = 300*'K';
+	inp_2_eq.outlet.W = 100*'kg/h';
+	inp_2_eq.outlet.x = [0, 0, 1, 0];
+
+	OPTIONS
+	Dynamic = false;
+
+end
+
+FlowSheet Dimensionamento
+
+	DEVICES
+	
+	fonte_1		as nova_fonte;
+	fonte_7		as nova_fonte;
+	fonte_10	as nova_fonte;
+	fonte_12	as nova_fonte;
+	
+	reator			as novo_reator;
+	extrator		as novo_extrator;
+	evaporador		as novo_evaporador;
+	condensador	as novo_condensador;
+	misturador		as novo_misturador;
+	
+	CONNECTIONS
+	
+	fonte_1.outlet		to reator.co_1;
+	reator.co_2			to extrator.co_2;
+	extrator.co_3		to evaporador.co_3;
+	evaporador.co_5		to condensador.co_5;
+	condensador.co_6	to misturador.co_6;
+	fonte_7.outlet		to misturador.co_7;
+	misturador.co_8		to extrator.co_8;
+	fonte_10.outlet		to evaporador.co_10;
+	fonte_12.outlet		to condensador.co_12;
+	
+	SPECIFY
+	
+	# Variaveis conhecidas
+	fonte_1.outlet.W = 1539*'kg/h';
+	fonte_1.outlet.T = 300*'K';
+	fonte_1.outlet.x = [1, 0, 0, 0];
+	
+	fonte_7.outlet.T = 300*'K';
+	fonte_7.outlet.x = [0, 0, 1, 0];	
+	
+	fonte_10.outlet.T = 420*'K';
+	fonte_10.outlet.x = [0, 0, 0, 1];
+	
+	fonte_12.outlet.T = 285*'K';
+	fonte_12.outlet.x = [0, 0, 0, 1];
+	
+	# Metas de projeto
+	reator.conv = 0.9;
+	extrator.co_9.x(2) = 0.95;
+	extrator.t = 0.75*'h';
+	evaporador.T = 350*'K';
+	evaporador.r = 0.9;
+	condensador.co_13.T = 300*'K';
+	
+	VARIABLES
+	R as positive (Brief= "Receita", Unit='US$/h');
+	Cmp as positive (Brief= "Custo materia prima", Unit='US$/h');
+	Cutil as positive (Brief= "Custo util da planta", Unit='US$/h');
+	ISBL as positive (Unit='US$/h');
+	LE as Real (Brief= "Lucro estimado", Unit='US$/h');
+	
+	EQUATIONS
+	R = (0.09*(extrator.co_9.f(2)*'h/kg'))*'US$/h';
+	Cmp = ((0.03*fonte_1.outlet.W + 0.0115*fonte_7.outlet.W)*'h/kg')*'US$/h';
+	Cutil = ((0.0015*fonte_10.outlet.W + 0.00005*fonte_12.outlet.W)*'h/kg')*'US$/h';
+	ISBL = 0.0006*((272.51*(((reator.V+extrator.V)*'1/m^3')^0.6))+(8352.73*((condensador.A+evaporador.A)*'1/m^2')^0.5))*'US$/h';
+	LE = (0.48*(R*'h/US$')-0.68*((Cmp+Cutil)*'h/US$')-0.54*(ISBL*'h/US$'))*'US$/h'; 
+	
+	OPTIONS
+	Dynamic = false;
+	
+end
+
+CaseStudy CS as Dimensionamento
+
+	VARY
+	evaporador.r = [0.75:0.005:0.99];
+	
+	RESPONSE
+	Cmp;
+	Cutil;
+	ISBL;
+	LE;
+	
+end
